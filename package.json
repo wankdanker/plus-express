@@ -8,8 +8,12 @@
     "build": "tsc",
     "demo": "tsx ./example.ts",
     "test": "vitest",
-    "lint": "eslint src/**/*.ts",
-    "prepublish": "npm run build"
+    "test:ci": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "prepublish": "npm run build",
+    "type-check": "tsc --noEmit"
   },
   "keywords": [
     "express",
@@ -31,18 +35,23 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@asteasolutions/zod-to-openapi": "^7.3.0",
+    "@asteasolutions/zod-to-openapi": "^8.1.0",
     "extend": "^3.0.2",
     "tsx": "^4.19.3",
-    "zod": "^3.24.3"
+    "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.1",
     "@types/express": "^5.0.1",
     "@types/extend": "^3.0.4",
+    "@types/node": "^24.10.1",
+    "@types/supertest": "^6.0.3",
     "@typescript-eslint/eslint-plugin": "^8.31.0",
     "@typescript-eslint/parser": "^8.31.0",
+    "@vitest/coverage-v8": "^3.2.4",
     "eslint": "^9.25.1",
     "express": "^5.0.1",
+    "supertest": "^7.1.4",
     "typescript": "^5.8.3",
     "vitest": "^3.1.2"
   }

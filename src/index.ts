@@ -4,7 +4,6 @@ import { routerPlus } from './router-plus';
 import { createRegistry } from './registry';
 import { z } from 'zod';
 import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
-import { mountRegistry } from './utils';
 
 // Re-export types
 export * from './types';
@@ -19,7 +18,6 @@ export {
   expressPlus,
   routerPlus,
   createRegistry,
-  mountRegistry,
   z
 };
 

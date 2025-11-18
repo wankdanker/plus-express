@@ -18,6 +18,8 @@ PlusExpress has `express` as a peer dependency, so make sure you have it install
 npm install express
 ```
 
+**Note**: Zod is included as a dependency, so you don't need to install it separately. PlusExpress re-exports Zod for your convenience.
+
 ## Quick Start
 
 ```typescript
@@ -289,6 +291,51 @@ PlusExpress uses a smart tracking system to handle router composition:
 
 This works with any level of nesting, allowing you to organize your API however you prefer while maintaining correct documentation.
 
+## Error Handling
+
+PlusExpress automatically handles validation errors and provides a standardized error format. When validation fails, the middleware automatically sends an error response without reaching your route handler.
+
+### Validation Error Response Format
+
+```typescript
+{
+  "status": 400,
+  "message": "Validation failed",
+  "errors": [
+    {
+      "code": "invalid_type",
+      "expected": "string",
+      "received": "number",
+      "path": ["body", "name"],
+      "message": "Expected string, received number"
+    }
+  ]
+}
+```
+
+### Custom Error Handling
+
+You can add your own error handler to customize error responses:
+
+```typescript
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const status = err.status || 500;
+  const message = err.message || 'Internal Server Error';
+
+  // Custom error logging
+  console.error(`Error ${status}:`, message);
+
+  res.status(status).json({
+    status,
+    message,
+    errors: err.errors,
+    // Add custom fields
+    timestamp: new Date().toISOString(),
+    path: req.path
+  });
+});
+```
+
 ## OpenAPI Documentation
 
 PlusExpress automatically generates OpenAPI documentation based on your route definitions and registry configuration:
@@ -344,6 +391,130 @@ The registry provides these chainable configuration methods:
 - `registerSecurityScheme(name, scheme)` - Add a security scheme
 - `generateOpenAPIDocument(config?)` - Generate the OpenAPI document
 - `getRawRegistry()` - Get the underlying OpenAPI registry
+
+### Additional Helper Functions
+
+PlusExpress also exports convenience factory functions:
+
+#### createExpressPlus()
+
+Creates an enhanced Express application, optionally creating a new Express app if none is provided:
+
+```typescript
+import { createExpressPlus } from 'plus-express';
+
+// Creates a new Express app automatically
+const { app, registry } = createExpressPlus();
+
+// Or enhance an existing app
+import express from 'express';
+const existingApp = express();
+const { app, registry } = createExpressPlus(existingApp);
+```
+
+**Note**: This requires Express to be installed as it uses `require('express')` internally when no app is provided.
+
+#### createRouterPlus()
+
+Creates an enhanced Express router:
+
+```typescript
+import { createRouterPlus } from 'plus-express';
+
+// Create a new router
+const { router, registry } = createRouterPlus();
+
+// Or enhance an existing router
+import express from 'express';
+const existingRouter = express.Router();
+const { router, registry } = createRouterPlus(existingRouter);
+```
+
+### TypeScript Support
+
+PlusExpress is written in TypeScript and exports all its types for your use:
+
+```typescript
+import {
+  // Main types
+  ExpressPlusApplication,
+  RouterPlus,
+  Registry,
+
+  // Configuration types
+  ApiOptions,
+  OpenAPIConfig,
+  EndpointOptions,
+  ResponseObject,
+
+  // Request types
+  ValidatedRequest,
+  TypedExpressHandler,
+
+  // Utility types
+  HttpMethod,
+  InferZodType,
+
+  // Return types
+  ExpressPlusReturn,
+  RouterPlusReturn
+} from 'plus-express';
+```
+
+The `ValidatedRequest` type is particularly useful for adding custom middleware:
+
+```typescript
+import { ValidatedRequest, TypedExpressHandler } from 'plus-express';
+import { z } from 'plus-express';
+
+// Custom middleware with type safety
+const authMiddleware: TypedExpressHandler<
+  undefined,  // body
+  undefined,  // params
+  z.ZodObject<{ token: z.ZodString }>,  // query
+  undefined   // headers
+> = (req, res, next) => {
+  // TypeScript knows req.parsed.query.token is a string
+  const token = req.parsed.query.token;
+
+  // Your auth logic
+  next();
+};
+```
+
+## Troubleshooting
+
+### Express peer dependency warning
+
+If you see a peer dependency warning, ensure you have Express installed:
+
+```bash
+npm install express
+```
+
+PlusExpress supports Express 4.17.1+ and Express 5.x.
+
+### Type errors with Express methods
+
+If you encounter TypeScript errors with Express methods, ensure you have the latest types:
+
+```bash
+npm install --save-dev @types/express
+```
+
+### Validation not working
+
+Make sure you're accessing validated data through `req.parsed` rather than the original `req.body`, `req.params`, etc.:
+
+```typescript
+// ✅ Correct - uses validated data
+const { id } = req.parsed.params;
+
+// ❌ Wrong - bypasses validation
+const { id } = req.params;
+```
+
+Note: PlusExpress does update the original properties for backward compatibility, but using `req.parsed` is recommended for clarity and type safety.
 
 ## Contributing
 

@@ -1,6 +1,9 @@
 import express from 'express';
 import { plus, z } from '.'; // In real usage, this would be 'plus-express'
 
+// Configuration
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+
 // Initialize PlusExpress with an Express app using the unified plus() function
 const { app, registry } = plus(express());
 
@@ -15,7 +18,7 @@ registry
     description: 'An example API built with PlusExpress'
   })
   .addServer({
-    url: 'http://localhost:3000',
+    url: `http://localhost:${PORT}`,
     description: 'Development server'
   })
   .addServer({
@@ -376,7 +379,6 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 });
 
 // Start the server
-const PORT = 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`API Documentation: http://localhost:${PORT}/api-docs.json`);

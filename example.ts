@@ -1,8 +1,11 @@
 import express from 'express';
-import { expressPlus, routerPlus, z, mountRegistry } from '.'; // In real usage, this would be 'express-plus'
+import { expressPlus, routerPlus, z } from '.'; // In real usage, this would be 'express-plus'
 
 // Initialize ExpressPlus with an Express app
 const { app, registry } = expressPlus(express());
+
+// Enable JSON body parsing
+app.use(express.json());
 
 // Configure the registry using the builder pattern
 registry
@@ -77,8 +80,8 @@ usersRouter.get({
   description: 'Retrieve a list of all users with optional filtering',
   tags: ['Users'],
   query: z.object({
-    limit: z.number().optional(),
-    offset: z.number().optional(),
+    limit: z.coerce.number().optional(),
+    offset: z.coerce.number().optional(),
     search: z.string().optional()
   }),
   responses: {
@@ -276,59 +279,26 @@ app.get('/api-docs.json', (req, res) => {
   res.json(document);
 });
 
-// Debug route to see mount registry
+// Debug route to see registered paths
 app.get('/api-debug', (req, res) => {
-  // Import the mount registry
-  const { mountRegistry } = require('./src/utils');
-  
-  // Get the paths from the main registry
-  const mainPaths = registry.getRawRegistry().definitions
-    .filter(def => def.type === 'path')
-    .map(def => ({
-      path: def.schema.path,
-      method: def.schema.method,
-      source: 'main'
-    }));
-    
-  // Get paths from each mounted registry with expected combined paths
-  const mountedPaths = mountRegistry.flatMap(m => 
-    m.registry ? m.registry.definitions
-      .filter(def => def.type === 'path')
-      .map(def => {
-        let routePath = def.schema.path;
-        if (routePath.startsWith('/')) {
-          routePath = routePath.substring(1);
-        }
-        const expectedPath = m.path === '/' ? `/${routePath}` : `${m.path}/${routePath}`;
-        
-        return {
-          originalPath: def.schema.path,
-          method: def.schema.method,
-          mountPoint: m.path,
-          expectedCombinedPath: expectedPath,
-          source: 'mounted'
-        };
-      }) : []
-  );
-  
   // Generate the complete OpenAPI document
   const openApiDoc = registry.generateOpenAPIDocument();
-  
+
+  // Get all registered routes from the OpenAPI document
+  const registeredRoutes = Object.entries(openApiDoc.paths || {}).flatMap(([path, methods]: [string, any]) =>
+    Object.keys(methods).map(method => ({
+      path,
+      method: method.toUpperCase(),
+      summary: methods[method]?.summary || '',
+      tags: methods[method]?.tags || []
+    }))
+  );
+
   res.json({
-    mountPoints: mountRegistry.map(m => ({
-      path: m.path,
-      hasRegistry: !!m.registry,
-      definitionsCount: m.registry ? m.registry.definitions.length : 0
-    })),
-    paths: {
-      main: mainPaths,
-      mounted: mountedPaths
-    },
-    // Compare expected vs actual
-    expectedPaths: mountedPaths.map(p => p.expectedCombinedPath),
-    actualPaths: Object.keys(openApiDoc.paths || {}),
-    // Full document for reference
-    combinedPaths: openApiDoc.paths
+    totalRoutes: registeredRoutes.length,
+    routes: registeredRoutes,
+    openApiVersion: openApiDoc.openapi,
+    apiInfo: openApiDoc.info
   });
 });
 

@@ -8,8 +8,12 @@
     "build": "tsc",
     "demo": "tsx ./example.ts",
     "test": "vitest",
-    "lint": "eslint src/**/*.ts",
-    "prepublish": "npm run build"
+    "test:ci": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "prepublish": "npm run build",
+    "type-check": "tsc --noEmit"
   },
   "keywords": [
     "express",
@@ -37,6 +41,7 @@
     "zod": "^3.24.3"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.1",
     "@types/express": "^5.0.1",
     "@types/extend": "^3.0.4",
     "@types/node": "^24.10.1",

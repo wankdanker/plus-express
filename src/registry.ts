@@ -25,7 +25,7 @@ export function createRegistry(options: ApiOptions = {}): Registry {
   let defaultQuerySchema = options.defaultQuerySchema || z.object({});
   let defaultHeaderSchema = options.defaultHeaderSchema || z.object({});
   let defaultResponses = options.defaultResponses || {};
-  let openApiConfig: OpenAPIConfig = options.openApiConfig || {
+  const openApiConfig: OpenAPIConfig = options.openApiConfig || {
     openapi: '3.0.0',
     info: {
       title: 'API Documentation',

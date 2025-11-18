@@ -35,10 +35,10 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@asteasolutions/zod-to-openapi": "^7.3.0",
+    "@asteasolutions/zod-to-openapi": "^8.1.0",
     "extend": "^3.0.2",
     "tsx": "^4.19.3",
-    "zod": "^3.24.3"
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

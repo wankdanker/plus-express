@@ -220,13 +220,13 @@ This keeps all validated data organized in a single namespace while maintaining 
 
 ### Enhanced Routers
 
-PlusExpress also provides enhanced routers with the same validation and documentation capabilities:
+PlusExpress provides a unified `plus()` function that works for both apps and routers:
 
 ```typescript
-import { routerPlus } from 'plus-express';
+import { plus } from 'plus-express';
 
-// Create a new enhanced router
-const { router, registry } = routerPlus();
+// Create a new enhanced router (plus() with no arguments)
+const { router, registry } = plus();
 
 // Configure the router's registry
 registry.setInfo({
@@ -254,10 +254,10 @@ app.use('/api', router);
 PlusExpress automatically handles router composition, correctly combining OpenAPI specifications from multiple routers and respecting mount paths:
 
 ```typescript
-// Create multiple routers
-const { router: usersRouter } = routerPlus();
-const { router: productsRouter } = routerPlus();
-const { router: adminRouter } = routerPlus();
+// Create multiple routers using the unified plus() function
+const { router: usersRouter } = plus();
+const { router: productsRouter } = plus();
+const { router: adminRouter } = plus();
 
 // Define routes on each router
 usersRouter.get('/profile', /* ... */);
@@ -309,22 +309,27 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(null, {
 
 ## API Reference
 
-### plus(app, options?)
+### plus()
 
-Enhances an Express application with validation and OpenAPI documentation.
+The unified `plus()` function works with both Express applications and routers. It automatically detects the type and applies the appropriate enhancements:
 
 ```typescript
+// Enhance an Express application
 const { app, registry } = plus(express());
+
+// Create a new enhanced router
+const { router, registry } = plus();
+
+// Enhance an existing router
+const existingRouter = express.Router();
+const { router, registry } = plus(existingRouter);
 ```
 
-### routerPlus(router?, options?)
-
-Enhances an Express router with validation and OpenAPI documentation.
+For those who prefer explicit naming, `plusRouter()` is also available as an alias:
 
 ```typescript
-const { router, registry } = routerPlus();
-// or
-const { router, registry } = routerPlus(express.Router());
+import { plusRouter } from 'plus-express';
+const { router, registry } = plusRouter();
 ```
 
 ### Registry Methods

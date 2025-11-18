@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import express, { Application } from 'express';
+import express, { Application, Router } from 'express';
 import request from 'supertest';
 import { plus } from './index';
-import { routerPlus } from './router-plus';
 import { z } from 'zod';
 
 describe('plus', () => {
@@ -135,9 +134,37 @@ describe('plus', () => {
     });
   });
 
+  describe('Unified API', () => {
+    it('should work with Express app', () => {
+      const expressApp = express();
+      const result = plus(expressApp);
+
+      expect(result).toHaveProperty('app');
+      expect(result).toHaveProperty('registry');
+      expect(result.app).toBe(expressApp);
+    });
+
+    it('should create new router when called with no arguments', () => {
+      const result = plus();
+
+      expect(result).toHaveProperty('router');
+      expect(result).toHaveProperty('registry');
+      expect(result.router).toBeDefined();
+    });
+
+    it('should work with existing Express router', () => {
+      const expressRouter = Router();
+      const result = plus(expressRouter);
+
+      expect(result).toHaveProperty('router');
+      expect(result).toHaveProperty('registry');
+      expect(result.router).toBe(expressRouter);
+    });
+  });
+
   describe('Router Mounting', () => {
     it('should mount routers at specified paths', async () => {
-      const { router: usersRouter } = routerPlus();
+      const { router: usersRouter } = plus();
 
       usersRouter.get({
         path: '/list',
@@ -154,8 +181,8 @@ describe('plus', () => {
     });
 
     it('should handle nested routers', async () => {
-      const { router: usersRouter } = routerPlus();
-      const { router: adminRouter } = routerPlus();
+      const { router: usersRouter } = plus();
+      const { router: adminRouter } = plus();
 
       adminRouter.get({
         path: '/stats',
@@ -196,7 +223,7 @@ describe('plus', () => {
     });
 
     it('should include mounted router paths in OpenAPI document', () => {
-      const { router: usersRouter } = routerPlus();
+      const { router: usersRouter } = plus();
 
       usersRouter.get({
         path: '/list',

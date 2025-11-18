@@ -4,6 +4,7 @@ import { routerPlus } from './router-plus';
 import { createRegistry } from './registry';
 import { z } from 'zod';
 import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
+import { ApiOptions, ExpressPlusReturn, RouterPlusReturn } from './types';
 
 // Re-export types
 export * from './types';
@@ -21,8 +22,51 @@ export {
   z
 };
 
-// Export the main `plus()` function
-export { expressPlus as plus };
+// Export plusRouter as an alias for those who prefer explicit naming
+export { routerPlus as plusRouter };
+
+/**
+ * Unified plus() function that works with both Express apps and routers
+ *
+ * @overload Create a new enhanced router
+ */
+export function plus(): RouterPlusReturn;
+
+/**
+ * @overload Enhance an existing Express router
+ * @param router Express router instance
+ * @param opts Configuration options
+ */
+export function plus(router: Router, opts?: ApiOptions): RouterPlusReturn;
+
+/**
+ * @overload Enhance an Express application
+ * @param app Express application instance
+ * @param opts Configuration options
+ */
+export function plus(app: Application, opts?: ApiOptions): ExpressPlusReturn;
+
+/**
+ * Unified plus() function implementation
+ */
+export function plus(
+  appOrRouter?: Application | Router,
+  opts: ApiOptions = {}
+): ExpressPlusReturn | RouterPlusReturn {
+  // If nothing provided, create a new router
+  if (!appOrRouter) {
+    return routerPlus(undefined, opts);
+  }
+
+  // Check if it's an Application (has listen method)
+  // Applications have listen(), Routers don't
+  if ('listen' in appOrRouter && typeof (appOrRouter as any).listen === 'function') {
+    return expressPlus(appOrRouter as Application, opts);
+  }
+
+  // Otherwise, treat it as a Router
+  return routerPlus(appOrRouter as Router, opts);
+}
 
 /**
  * Create an enhanced Express application

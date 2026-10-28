@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Routes on routers nested inside other routers (for example `usersRouter.use('/admin', adminRouter)`) now appear in the app's OpenAPI document. This includes routers nested after their parent was mounted. ([#5])
 - Validation errors now set `err.errors` to the array of Zod issues, as documented. Since the Zod 4 upgrade it had been a JSON string. If you `JSON.parse`d it, read the array directly instead. The original `ZodError` is now attached as `err.cause`. ([#6])
+- On Express 5, validated query values are now written back onto `req.query`, as on Express 4. Express 5 re-parses `req.query` on every access, so coerced values and defaults were lost there; only `req.parsed.query` had them. ([#7])
 - `ExpressPlusApplication` and `RouterPlus` can be used where Express expects a request handler, so `http.createServer(app)` and supertest's `request(app)` now type-check. ([#6])
 
 ## [2.1.1] - 2025-11-19
@@ -78,3 +79,4 @@ Initial release.
 [1.0.0]: https://github.com/wankdanker/plus-express/tree/v1.0.0
 [#5]: https://github.com/wankdanker/plus-express/pull/5
 [#6]: https://github.com/wankdanker/plus-express/pull/6
+[#7]: https://github.com/wankdanker/plus-express/pull/7

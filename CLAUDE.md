@@ -29,7 +29,7 @@ Everything lives in `src/`. The main moving parts:
 - **`types.ts`**: all shared types. `AugmentedMethod<T>` provides the typed overloads that infer handler `req.parsed` types from the Zod schemas. `ExpressPlusApplication` and `RouterPlus` `Omit` and then redeclare the HTTP methods and `use()`. `Omit` drops call signatures, so both re-add them explicitly (otherwise `http.createServer(app)` and `request(app)` fail to type-check). `AnyZodObject` is the bound for object-schema generics; use it instead of `ZodObject<any>`.
 
 ### Validation behavior
-- Validated values go to `req.parsed.{body,params,query,headers}` and are also written back onto `req.body`/`req.params`/`req.query`/`req.headers` for compatibility. On Express 5, `req.query` is a getter that re-parses on every access, so the write-back to it is lost; only `req.parsed.query` has the coerced values.
+- Validated values go to `req.parsed.{body,params,query,headers}` and are also written back onto `req.body`/`req.params`/`req.query`/`req.headers` for compatibility. On Express 5, `req.query` is a getter that re-parses on every access, so the middleware shadows it with an own property holding the merged values.
 - Query and header schemas are always run, merged with the defaults. Headers are validated with `.partial()`.
 - On failure, the middleware calls `next(err)` with `err.status = 400`, `err.message = 'Validation failed'`, `err.errors` set to the Zod issues, and `err.cause` set to the `ZodError`. It does not send a response itself, so formatting is left to the app's error handler.
 

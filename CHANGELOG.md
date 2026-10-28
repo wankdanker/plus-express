@@ -7,9 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
+**Breaking changes:**
 
-- The package now includes the MIT `LICENSE` file. ([#21])
+- Requests missing a required header now fail validation with a 400.
+- Errors other than Zod validation failures thrown while parsing are passed to `next()` unchanged instead of becoming 400s.
+- `generateOpenAPIDocument()` and `registerSecurityScheme()` are typed instead of `any`, so code reading into the document may need optional chaining.
+
+Details are in the entries below.
 
 ### Changed
 
@@ -17,6 +21,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking:** only Zod validation failures become 400 "Validation failed" errors. Any other error thrown while parsing, such as a bug in a `.transform()`, is now passed to `next()` unchanged, so Express answers it with a 500 by default. Previously it became a 400 that blamed the client and sent the internal error message as `err.errors`, which is now always an array of Zod issues. Report expected failures from a refinement with `.refine()` or `ctx.addIssue()`; they're still 400s. ([#24])
 - **Breaking (types):** `generateOpenAPIDocument()` now returns the `OpenAPIDocument` type (the OpenAPI 3.0 document type from zod-to-openapi) instead of `any`, and `registerSecurityScheme()` takes a `SecuritySchemeObject` instead of `any`. Code that reads into the document may need optional chaining where the OpenAPI types mark a field optional, for example `doc.paths['/users'].get?.summary` and `doc.components?.securitySchemes`. Invalid security scheme objects are now compile errors. Both types are exported. ([#24])
 - Header names in header schemas are now matched case-insensitively, so `'X-Api-Key'` finds the incoming `x-api-key`. ([#24])
+
+## [3.1.0] - 2026-10-28
+
+### Added
+
+- The package now includes the MIT `LICENSE` file. ([#21])
+
+### Changed
+
 - `generateOpenAPIDocument()` now throws when two registries in the document (the app's and its mounted routers') define a component with the same name but different contents, such as two different schemas both named `User`. Previously one was kept silently and routes referencing the other were documented wrongly. Identical definitions are still allowed. ([#23])
 
 ### Fixed
@@ -104,7 +117,8 @@ Initial release.
 - Chainable registry configuration: `setInfo`, `addServer`, `setDefaultQuerySchema`, `setDefaultHeaderSchema`, `setDefaultResponses`, and `registerSecurityScheme`.
 - Supports Zod 4 and Express 4 or 5.
 
-[Unreleased]: https://github.com/wankdanker/plus-express/compare/v3.0.0...HEAD
+[Unreleased]: https://github.com/wankdanker/plus-express/compare/v3.1.0...HEAD
+[3.1.0]: https://github.com/wankdanker/plus-express/compare/v3.0.0...v3.1.0
 [3.0.0]: https://github.com/wankdanker/plus-express/compare/v2.1.1...v3.0.0
 [2.1.1]: https://github.com/wankdanker/plus-express/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/wankdanker/plus-express/compare/v2.0.2...v2.1.0

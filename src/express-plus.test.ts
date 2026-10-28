@@ -86,6 +86,31 @@ describe('plus', () => {
       expect(response.status).toBe(400);
     });
 
+    it('should pass Zod issues to the error handler on validation failure', async () => {
+      app.use(express.json());
+
+      app.post({
+        path: '/users',
+        body: z.object({ name: z.string() })
+      }, (req, res) => {
+        res.json(req.parsed.body);
+      });
+
+      app.use((err: Error & { status: number; errors: unknown }, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+        res.status(err.status).json({ message: err.message, errors: err.errors });
+      });
+
+      const response = await request(app)
+        .post('/users')
+        .send({ name: 1 });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('Validation failed');
+      expect(response.body.errors).toEqual([
+        expect.objectContaining({ code: 'invalid_type', path: ['name'] })
+      ]);
+    });
+
     it('should validate path parameters', async () => {
       app.get('/users/:id', {
         params: z.object({

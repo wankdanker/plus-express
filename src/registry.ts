@@ -145,12 +145,12 @@ export function createRegistry(options: ApiOptions = {}): Registry {
 
         // Proceed to next middleware
         next();
-      } catch (error: any) {
+      } catch (error) {
         // Create a standardized error response
-        const err: any = new Error('Validation failed');
-        err.status = 400;
-        err.errors = error.errors || error.message;
-        next(err);
+        next(Object.assign(new Error('Validation failed', { cause: error }), {
+          status: 400,
+          errors: error instanceof ZodError ? error.issues : (error as Error).message,
+        }));
       }
     };
   }

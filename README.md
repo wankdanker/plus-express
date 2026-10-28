@@ -522,6 +522,12 @@ Note: PlusExpress does update the original properties for backward compatibility
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
+Add an entry for any user-facing change under `## [Unreleased]` in [CHANGELOG.md](CHANGELOG.md).
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for release notes.
+
 ## License
 
 MIT

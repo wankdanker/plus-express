@@ -1,6 +1,6 @@
 {
   "name": "plus-express",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "Express.js enhanced with type-safe validation and automatic OpenAPI documentation",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

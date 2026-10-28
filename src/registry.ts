@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express';
-import { z, ZodError, ZodType, ZodObject } from 'zod';
+import { z, ZodError, ZodType } from 'zod';
 import { OpenAPIRegistry, OpenApiGeneratorV3, extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
 import extend from 'extend';
 import { 
@@ -8,7 +8,9 @@ import {
   ValidatedRequest, 
   OpenAPIConfig, 
   ApiOptions,
-  Registry
+  AnyZodObject,
+  Registry,
+  ResponseObject,
 } from './types';
 
 // Extend Zod with OpenAPI support
@@ -38,9 +40,9 @@ export function createRegistry(options: ApiOptions = {}): Registry {
    */
   function createEndpoint<
     TBody extends ZodType = ZodType,
-    TParams extends ZodObject<any> = ZodObject<any>,
-    TQuery extends ZodObject<any> = ZodObject<any>,
-    THeaders extends ZodObject<any> = ZodObject<any>
+    TParams extends AnyZodObject = AnyZodObject,
+    TQuery extends AnyZodObject = AnyZodObject,
+    THeaders extends AnyZodObject = AnyZodObject
   >(
     method: HttpMethod,
     path: string,
@@ -87,7 +89,7 @@ export function createRegistry(options: ApiOptions = {}): Registry {
     }
 
     // Register the route in OpenAPI registry
-    const route = openApiRegistry.registerPath({
+    openApiRegistry.registerPath({
       method,
       path: openApiPath,
       operationId,
@@ -108,7 +110,7 @@ export function createRegistry(options: ApiOptions = {}): Registry {
     return (req: Request, res: Response, next: NextFunction): void => {
       try {
         // Create a validated request object
-        const validatedRequest = req as ValidatedRequest<any, any, any, any>;
+        const validatedRequest = req as ValidatedRequest;
         
         // Initialize the parsed object if it doesn't exist
         if (!validatedRequest.parsed) {
@@ -139,9 +141,10 @@ export function createRegistry(options: ApiOptions = {}): Registry {
         // Validate headers with merged schema
         // Use partial to ensure we only validate the headers we care about
         const headersSchema = mergedHeaderSchema.partial();
-        validatedRequest.parsed.headers = headersSchema.parse(req.headers);
+        const parsedHeaders = headersSchema.parse(req.headers);
+        validatedRequest.parsed.headers = parsedHeaders;
         // Merge validated headers back with original headers
-        req.headers = { ...req.headers, ...validatedRequest.parsed.headers };
+        req.headers = { ...req.headers, ...parsedHeaders };
 
         // Proceed to next middleware
         next();
@@ -188,7 +191,7 @@ export function createRegistry(options: ApiOptions = {}): Registry {
   /**
    * Set the default query schema for all endpoints
    */
-  function setDefaultQuerySchema(schema: ZodObject<any>): Registry {
+  function setDefaultQuerySchema(schema: AnyZodObject): Registry {
     defaultQuerySchema = schema;
     return registry;
   }
@@ -196,7 +199,7 @@ export function createRegistry(options: ApiOptions = {}): Registry {
   /**
    * Set the default header schema for all endpoints
    */
-  function setDefaultHeaderSchema(schema: ZodObject<any>): Registry {
+  function setDefaultHeaderSchema(schema: AnyZodObject): Registry {
     defaultHeaderSchema = schema;
     return registry;
   }
@@ -204,7 +207,7 @@ export function createRegistry(options: ApiOptions = {}): Registry {
   /**
    * Set the default responses for all endpoints
    */
-  function setDefaultResponses(responses: Record<string | number, any>): Registry {
+  function setDefaultResponses(responses: Record<string | number, ResponseObject>): Registry {
     defaultResponses = responses;
     return registry;
   }

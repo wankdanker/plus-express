@@ -1,11 +1,12 @@
-import { Application, Router } from 'express';
+import { Application } from 'express';
 import { createRegistry } from './registry';
 import {
   ApiOptions,
   ExpressPlusApplication,
-  ExpressPlusReturn
+  ExpressPlusReturn,
+  MountInfo,
 } from './types';
-import { enhanceHttpMethods, normalizeMountPath, registerMountedRoutes, MountInfo } from './utils';
+import { enhanceHttpMethods, recordRouterPlusMount, registerMountedRoutes } from './utils';
 
 /**
  * Enhances an Express application with typed route handling and OpenAPI documentation
@@ -25,42 +26,27 @@ export const expressPlus = (app: Application, opts: ApiOptions = {}): ExpressPlu
   const methods = ['get', 'post', 'put', 'delete', 'patch', 'options', 'head'] as const;
 
   // Enhance the app with our augmented methods
-  enhanceHttpMethods(app, methods, registry.createEndpoint as any);
+  enhanceHttpMethods(app, methods, registry.createEndpoint);
 
   // Keep a reference to the original use method
-  const originalUse = app.use;
+  const originalUse = app.use as unknown as (...args: unknown[]) => Application;
 
   // Override the use method to track router mounting
-  app.use = function(...args: any[]): Application {
-    // Case 1: Path + RouterPlus (app.use('/path', router))
-    if (args.length >= 2) {
-      const mountPath = typeof args[0] === 'string' ? args[0] : '/';
-      const middleware = args[1];
-
-      // If middleware is a RouterPlus, register its mount point
-      if (middleware && middleware._isRouterPlus && middleware._registry) {
-        const normalizedPath = normalizeMountPath(mountPath);
-        mountRegistry.push({ path: normalizedPath, registry: middleware._registry, mounts: middleware._nestedMountRegistry });
-      }
-    }
-
-    // Case 2: Just RouterPlus (app.use(router))
-    if (args.length === 1 && args[0] && args[0]._isRouterPlus && args[0]._registry) {
-      mountRegistry.push({ path: '/', registry: args[0]._registry, mounts: args[0]._nestedMountRegistry });
-    }
+  app.use = function(this: Application, ...args: unknown[]): Application {
+    recordRouterPlusMount(args, mountRegistry);
 
     // Call the original use method
-    return originalUse.apply(this, args as any) as Application;
-  };
+    return originalUse.apply(this, args);
+  } as Application['use'];
 
   // Override the generateOpenAPIDocument method to combine registries
   const originalGenerateOpenAPIDocument = registry.generateOpenAPIDocument;
-  registry.generateOpenAPIDocument = function(config?: Partial<any>): any {
+  registry.generateOpenAPIDocument = (config) => {
     // Copy mounted (and nested) router routes into the base registry with full paths
     registerMountedRoutes(registry.getRawRegistry(), mountRegistry);
 
     // Then generate the document using the original method
-    return originalGenerateOpenAPIDocument.call(this, config);
+    return originalGenerateOpenAPIDocument(config);
   };
 
   // Return enhanced app and registry

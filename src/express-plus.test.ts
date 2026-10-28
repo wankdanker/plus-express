@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import express, { Application, Router } from 'express';
+import express, { Router } from 'express';
 import request from 'supertest';
-import { plus } from './index';
+import { plus, ExpressPlusApplication, Registry } from './index';
 import { z } from 'zod';
 
 describe('plus', () => {
-  let app: Application;
-  let registry: any;
+  let app: ExpressPlusApplication;
+  let registry: Registry;
 
   beforeEach(() => {
     const result = plus(express());
@@ -363,7 +363,9 @@ describe('plus', () => {
       app.get({
         path: '/users'
       }, (req, res) => {
-        res.json({ format: req.parsed.query.format });
+        // Default schemas are applied at runtime, so their fields aren't in the route's inferred types
+        const query = req.parsed.query as { format: string };
+        res.json({ format: query.format });
       });
 
       const response = await request(app).get('/users');
@@ -385,7 +387,7 @@ describe('plus', () => {
         })
       }, (req, res) => {
         res.json({
-          format: req.parsed.query.format,
+          format: (req.parsed.query as { format?: string; limit: number }).format,
           limit: req.parsed.query.limit
         });
       });

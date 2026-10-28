@@ -39,7 +39,7 @@ export function plus(): RouterPlusReturn;
 // Overload 2: Enhance an Express application
 // We use an intersection type to explicitly require the listen method
 export function plus(
-  app: Application & { listen: (...args: any[]) => any },
+  app: Application & { listen: (...args: never[]) => unknown },
   opts?: ApiOptions
 ): ExpressPlusReturn;
 
@@ -60,7 +60,7 @@ export function plus(
 
   // Check if it's an Application (has listen method)
   // Applications have listen(), Routers don't
-  if ('listen' in appOrRouter && typeof (appOrRouter as any).listen === 'function') {
+  if ('listen' in appOrRouter && typeof appOrRouter.listen === 'function') {
     return expressPlus(appOrRouter as Application, opts);
   }
 

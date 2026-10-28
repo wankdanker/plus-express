@@ -47,7 +47,14 @@ Tests use Vitest and supertest against real Express apps, split by area in `src/
 
 Releases go through `npm version <patch|minor|major>` on an up-to-date `main`, then `git push --follow-tags`. `scripts/changelog.mjs` runs as `preversion` (refuses to release with an empty `[Unreleased]`) and `version` (moves the entries under `## [X.Y.Z] - date`, updates the compare links, and stages the file into npm's version commit). Don't move entries by hand.
 
-Pushing the `vX.Y.Z` tag runs `.github/workflows/release.yml`. It runs the full CI matrix (`ci.yml` via `workflow_call`), checks the tag matches `package.json` and is on `main`, builds the release notes from the changelog section (`changelog.mjs notes`), publishes with npm trusted publishing (OIDC in the `npm` GitHub environment, no token, automatic provenance), and creates the GitHub release. Prerelease versions (`X.Y.Z-beta.N`) publish to the `next` dist-tag. Don't publish from a local machine. Actions in the workflows are pinned to commit SHAs with a version comment; update both together.
+Pushing the `vX.Y.Z` tag runs `.github/workflows/release.yml`. It runs the full CI matrix (`ci.yml` via `workflow_call`), checks the tag matches `package.json` and is on `main`, builds the release notes from the changelog section (`changelog.mjs notes`), publishes with npm trusted publishing (OIDC in the `npm` GitHub environment, no token, automatic provenance), and creates the GitHub release. Prerelease versions (`X.Y.Z-beta.N`) publish to the `next` dist-tag. Don't publish from a local machine.
+
+Repository protections (configured in GitHub settings, not files):
+- The `npm` environment only accepts `v*` tags and requires the maintainer's approval in the Actions tab, so the publish job waits after tests pass.
+- Rulesets: `main` requires PRs and the four CI checks (no force-push or deletion); `v*` tags can only be created by admins and can't be moved or deleted. Admins bypass both, which is how the `npm version` commit and tag are pushed directly.
+- Immutable releases are on, so a published GitHub release and its tag can't be changed.
+- Allowed actions are restricted to GitHub-owned actions pinned to full commit SHAs (keep the `# vX.Y.Z` comment next to each pin). Dependabot (`.github/dependabot.yml`, 7-day cooldown) updates pins and dependencies; CodeQL default setup scans TypeScript and workflows.
+- Merged PR branches are deleted automatically, so stacked PRs retarget to their parent's base.
 
 ## Code Style Guidelines
 - **Indentation**: 2 spaces

@@ -9,6 +9,9 @@ on:
   # Lets the release workflow run the same checks before publishing
   workflow_call:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     name: Test & Build (Node ${{ matrix.node-version }}, Express ${{ matrix.express-version }})

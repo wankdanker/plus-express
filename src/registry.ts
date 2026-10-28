@@ -170,10 +170,15 @@ export function createRegistry(options: ApiOptions = {}, mounts: MountInfo[] = [
         // Proceed to next middleware
         next();
       } catch (error) {
-        // Create a standardized error response
+        // Anything other than a validation failure (e.g. a bug in a transform) is passed on
+        // unchanged, so the app's error handling treats it as a server error
+        if (!(error instanceof ZodError)) {
+          next(error);
+          return;
+        }
         next(Object.assign(new Error('Validation failed', { cause: error }), {
           status: 400,
-          errors: error instanceof ZodError ? error.issues : (error as Error).message,
+          errors: error.issues,
         }));
       }
     };

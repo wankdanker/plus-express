@@ -36,7 +36,7 @@ Everything lives in `src/`. The main moving parts:
 ### Validation behavior
 - Validated values go to `req.parsed.{body,params,query,headers}` and are also written back onto `req.body`/`req.params`/`req.query`/`req.headers` for compatibility. On Express 5, `req.query` is a getter that re-parses on every access, so the middleware shadows it with an own property holding the merged values.
 - Query and header schemas are always run, merged with the defaults. Missing required headers fail validation. Header names the schema declares are looked up case-insensitively (Node lowercases incoming names).
-- On failure, the middleware calls `next(err)` with `err.status = 400`, `err.message = 'Validation failed'`, `err.errors` set to the Zod issues, and `err.cause` set to the `ZodError`. It does not send a response itself, so formatting is left to the app's error handler.
+- On failure, the middleware calls `next(err)` with `err.status = 400`, `err.message = 'Validation failed'`, `err.errors` set to the Zod issues, and `err.cause` set to the `ZodError`. It does not send a response itself, so formatting is left to the app's error handler. Errors that aren't a `ZodError` (e.g. a throwing `.transform()`) are passed to `next()` unchanged.
 
 After generation, `requirePathParameters` and `documentCoercedParameters` (`utils.ts`) correct parameter docs that zod-to-openapi infers by test-parsing: `z.coerce.*` schemas accept `null` and so come out optional and nullable.
 

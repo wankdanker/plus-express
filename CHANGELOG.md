@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Breaking:** required headers are now enforced. A request missing a header that the route's header schema (or the default header schema) requires fails validation with a 400, as the OpenAPI document already said. Previously every header was validated as optional, so the handler ran with the header `undefined`. Mark headers that may be absent with `.optional()` or `.default()`. ([#24])
+- **Breaking:** only Zod validation failures become 400 "Validation failed" errors. Any other error thrown while parsing, such as a bug in a `.transform()`, is now passed to `next()` unchanged, so Express answers it with a 500 by default. Previously it became a 400 that blamed the client and sent the internal error message as `err.errors`, which is now always an array of Zod issues. Report expected failures from a refinement with `.refine()` or `ctx.addIssue()`; they're still 400s. ([#24])
 - Header names in header schemas are now matched case-insensitively, so `'X-Api-Key'` finds the incoming `x-api-key`. ([#24])
 - `generateOpenAPIDocument()` now throws when two registries in the document (the app's and its mounted routers') define a component with the same name but different contents, such as two different schemas both named `User`. Previously one was kept silently and routes referencing the other were documented wrongly. Identical definitions are still allowed. ([#23])
 

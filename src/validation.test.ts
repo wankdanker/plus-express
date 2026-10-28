@@ -115,6 +115,45 @@ describe('request validation', () => {
 
       expect(cause).toBeInstanceOf(z.ZodError);
     });
+
+    it('passes errors other than validation failures to next() unchanged', async () => {
+      const { app } = createApp();
+      const bug = new TypeError('bug in transform');
+      let received: unknown;
+      app.post({
+        path: '/users',
+        body: z.object({ name: z.string() }).transform(() => {
+          throw bug;
+        }),
+      }, (req, res) => {
+        res.json({});
+      });
+      app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+        received = err;
+        res.status(500).end();
+      });
+
+      const response = await request(app).post('/users').send({ name: 'Ada' });
+
+      expect(response.status).toBe(500);
+      expect(received).toBe(bug);
+    });
+
+    it('still reports refinement failures as validation errors', async () => {
+      const { app } = createApp();
+      app.post({
+        path: '/users',
+        body: z.object({ name: z.string() }).refine((body) => body.name !== 'root', 'Reserved name'),
+      }, (req, res) => {
+        res.json({});
+      });
+      handleErrors(app);
+
+      const response = await request(app).post('/users').send({ name: 'root' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.errors).toEqual([expect.objectContaining({ message: 'Reserved name' })]);
+    });
   });
 
   describe('params', () => {

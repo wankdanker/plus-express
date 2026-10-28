@@ -42,13 +42,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.0.2] - 2025-11-18
 
-No changes; version bump only.
-
-## [2.0.1] - 2025-11-18
-
 ### Fixed
 
 - `plus()` overloads now correctly infer `ExpressPlusReturn` for Express apps and `RouterPlusReturn` for routers. Previously this could fail with errors like "Property 'app' does not exist on type 'RouterPlusReturn'".
+
+## [2.0.1] - 2025-11-18
+
+No changes; the published package is identical to 2.0.0.
 
 ## [2.0.0] - 2025-11-18
 
@@ -74,7 +74,7 @@ Initial release.
 [2.1.0]: https://github.com/wankdanker/plus-express/compare/v2.0.2...v2.1.0
 [2.0.2]: https://github.com/wankdanker/plus-express/compare/v2.0.1...v2.0.2
 [2.0.1]: https://github.com/wankdanker/plus-express/compare/v2.0.0...v2.0.1
-[2.0.0]: https://github.com/wankdanker/plus-express/compare/b337ad2...v2.0.0
-[1.0.0]: https://github.com/wankdanker/plus-express/tree/b337ad2
+[2.0.0]: https://github.com/wankdanker/plus-express/compare/v1.0.0...v2.0.0
+[1.0.0]: https://github.com/wankdanker/plus-express/tree/v1.0.0
 [#5]: https://github.com/wankdanker/plus-express/pull/5
 [#6]: https://github.com/wankdanker/plus-express/pull/6

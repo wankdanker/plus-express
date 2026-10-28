@@ -10,8 +10,10 @@ import {
   ApiOptions,
   AnyZodObject,
   MountInfo,
+  OpenAPIDocument,
   Registry,
   ResponseObject,
+  SecuritySchemeObject,
 } from './types';
 import {
   assertCompatibleComponents,
@@ -187,7 +189,7 @@ export function createRegistry(options: ApiOptions = {}, mounts: MountInfo[] = [
   /**
    * Generate the full OpenAPI document
    */
-  function generateOpenAPIDocument(config: Partial<OpenAPIConfig> = {}): any {
+  function generateOpenAPIDocument(config: Partial<OpenAPIConfig> = {}): OpenAPIDocument {
     // Mounted routers' definitions are combined for this call only; no registry is modified
     const definitionSets = [openApiRegistry.definitions, ...collectMountedDefinitions(mounts)];
     if (definitionSets.length > 1) {
@@ -249,7 +251,7 @@ export function createRegistry(options: ApiOptions = {}, mounts: MountInfo[] = [
   /**
    * Register a security scheme
    */
-  function registerSecurityScheme(name: string, scheme: any): Registry {
+  function registerSecurityScheme(name: string, scheme: SecuritySchemeObject): Registry {
     openApiRegistry.registerComponent('securitySchemes', name, scheme);
     return registry;
   }

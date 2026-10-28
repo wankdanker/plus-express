@@ -220,6 +220,8 @@ app.get({
 
 This keeps all validated data organized in a single namespace while maintaining compatibility with the original Express properties (`req.body`, `req.params`, etc.).
 
+Headers the schema requires must be present, or the request fails validation; mark the others `.optional()`. Header names are matched case-insensitively, and headers the schema doesn't list are left alone.
+
 ### Enhanced Routers
 
 PlusExpress provides a unified `plus()` function that works for both apps and routers:
@@ -315,6 +317,8 @@ When validation fails, the middleware skips your route handler and passes an err
 
 Without a custom error handler, Express's default handler responds with status 400. Add your own to send the `errors` array to clients.
 
+Only Zod validation failures are reported this way. Any other error thrown while parsing, such as a bug in a `.transform()`, is passed to `next()` unchanged, so Express treats it as a server error (500). To reject a value from a refinement, use `.refine()` or `ctx.addIssue()`, which produce validation errors.
+
 ### Custom Error Handling
 
 You can add your own error handler to customize error responses:
@@ -390,8 +394,8 @@ The registry provides these chainable configuration methods:
 - `setDefaultQuerySchema(schema)` - Set default query schema for all routes
 - `setDefaultHeaderSchema(schema)` - Set default header schema for all routes
 - `setDefaultResponses(responses)` - Set default responses for all routes
-- `registerSecurityScheme(name, scheme)` - Add a security scheme
-- `generateOpenAPIDocument(config?)` - Generate the OpenAPI document
+- `registerSecurityScheme(name, scheme)` - Add a security scheme (typed as an OpenAPI security scheme object)
+- `generateOpenAPIDocument(config?)` - Generate the OpenAPI document (typed as `OpenAPIDocument`)
 - `getRawRegistry()` - Get the underlying OpenAPI registry
 
 ### Additional Helper Functions

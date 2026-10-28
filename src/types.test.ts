@@ -1,11 +1,11 @@
 /**
- * Type-level tests. The expectTypeOf assertions are checked by `npm run type-check`
+ * Type-level tests. The expectTypeOf assertions are checked by `pnpm run type-check`
  * (tsc includes test files); at runtime they only build the apps.
  */
 import { describe, it, expectTypeOf } from 'vitest';
 import { RequestListener } from 'http';
 import express, { NextFunction, Request, Response, Router } from 'express';
-import { plus, z, ExpressPlusReturn, RouterPlusReturn } from './index';
+import { plus, z, ExpressPlusReturn, OpenAPIDocument, RouterPlusReturn } from './index';
 
 describe('type inference', () => {
   it('infers req.parsed types from the route schemas', () => {
@@ -103,5 +103,15 @@ describe('type inference', () => {
     router.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
       res.status(500).send(err.message);
     });
+  });
+
+  it('types the generated document and security schemes', () => {
+    const { registry } = plus(express());
+
+    expectTypeOf(registry.generateOpenAPIDocument()).toEqualTypeOf<OpenAPIDocument>();
+
+    registry.registerSecurityScheme('bearer', { type: 'http', scheme: 'bearer' });
+    // @ts-expect-error -- not a security scheme type
+    registry.registerSecurityScheme('bad', { type: 'magic' });
   });
 });

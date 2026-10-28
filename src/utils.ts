@@ -2,7 +2,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { Router, Application } from 'express';
 import { z, ZodType } from 'zod';
 import { OpenAPIRegistry, OpenApiGeneratorV3 } from '@asteasolutions/zod-to-openapi';
-import { AnyZodObject, HttpMethod, EndpointOptions, MountInfo, Registry, RouterPlus } from './types';
+import { AnyZodObject, HttpMethod, EndpointOptions, MountInfo, OpenAPIDocument, Registry, RouterPlus } from './types';
 
 type RouteMethod = (...args: unknown[]) => unknown;
 type AnyEndpointOptions = EndpointOptions<ZodType, AnyZodObject, AnyZodObject, AnyZodObject>;
@@ -152,8 +152,6 @@ export function assertCompatibleComponents(definitionSets: Definition[][]): void
     });
   });
 }
-
-type OpenAPIDocument = ReturnType<OpenApiGeneratorV3['generateDocument']>;
 
 /**
  * Marks every path parameter as required, as the OpenAPI spec mandates.

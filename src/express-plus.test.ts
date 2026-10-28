@@ -244,7 +244,7 @@ describe('plus', () => {
       expect(doc).toHaveProperty('paths');
       expect(doc.paths).toHaveProperty('/users');
       expect(doc.paths['/users']).toHaveProperty('get');
-      expect(doc.paths['/users'].get.summary).toBe('Get all users');
+      expect(doc.paths['/users'].get?.summary).toBe('Get all users');
     });
 
     it('should include mounted router paths in OpenAPI document', () => {
@@ -265,7 +265,7 @@ describe('plus', () => {
       expect(doc.paths).toBeDefined();
       expect(doc.paths['/api/v1/users/list']).toBeDefined();
       expect(doc.paths['/api/v1/users/list'].get).toBeDefined();
-      expect(doc.paths['/api/v1/users/list'].get.summary).toBe('List users');
+      expect(doc.paths['/api/v1/users/list'].get?.summary).toBe('List users');
     });
 
     it('should include nested router paths in OpenAPI document', () => {
@@ -290,9 +290,9 @@ describe('plus', () => {
 
       const doc = registry.generateOpenAPIDocument();
 
-      expect(doc.paths['/api/profile'].get.summary).toBe('Get profile');
-      expect(doc.paths['/api/admin/stats'].get.summary).toBe('Get stats');
-      expect(doc.paths['/api/admin/audit/log/{id}'].get.summary).toBe('Get audit log');
+      expect(doc.paths['/api/profile'].get?.summary).toBe('Get profile');
+      expect(doc.paths['/api/admin/stats'].get?.summary).toBe('Get stats');
+      expect(doc.paths['/api/admin/audit/log/{id}'].get?.summary).toBe('Get audit log');
     });
 
     it('should include routers nested without a mount path', () => {
@@ -308,7 +308,7 @@ describe('plus', () => {
 
       const doc = registry.generateOpenAPIDocument();
 
-      expect(doc.paths['/api/health'].get.summary).toBe('Health check');
+      expect(doc.paths['/api/health'].get?.summary).toBe('Health check');
     });
 
     it('should configure OpenAPI info', () => {
@@ -333,8 +333,8 @@ describe('plus', () => {
       const doc = registry.generateOpenAPIDocument();
 
       expect(doc.servers).toHaveLength(2);
-      expect(doc.servers[0].url).toBe('http://localhost:3000');
-      expect(doc.servers[1].url).toBe('https://api.example.com');
+      expect(doc.servers?.[0].url).toBe('http://localhost:3000');
+      expect(doc.servers?.[1].url).toBe('https://api.example.com');
     });
 
     it('should register security schemes', () => {
@@ -347,8 +347,7 @@ describe('plus', () => {
       const doc = registry.generateOpenAPIDocument();
 
       expect(doc.components).toHaveProperty('securitySchemes');
-      expect(doc.components.securitySchemes).toHaveProperty('ApiKeyAuth');
-      expect(doc.components.securitySchemes.ApiKeyAuth.type).toBe('apiKey');
+      expect(doc.components?.securitySchemes?.ApiKeyAuth).toMatchObject({ type: 'apiKey' });
     });
   });
 

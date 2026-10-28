@@ -16,7 +16,7 @@ describe('route registration', () => {
     const response = await request(app).get('/users/3');
 
     expect(response.body).toEqual({ id: 3 });
-    expect(registry.generateOpenAPIDocument().paths['/users/{id}'].get.summary).toBe('Get user');
+    expect(registry.generateOpenAPIDocument().paths['/users/{id}'].get?.summary).toBe('Get user');
   });
 
   it('throws when an options object has no path', () => {

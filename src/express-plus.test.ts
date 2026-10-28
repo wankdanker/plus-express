@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import express, { Application, Router } from 'express';
+import express, { Router } from 'express';
 import request from 'supertest';
-import { plus } from './index';
+import { plus, ExpressPlusApplication, Registry } from './index';
 import { z } from 'zod';
 
 describe('plus', () => {
-  let app: Application;
-  let registry: any;
+  let app: ExpressPlusApplication;
+  let registry: Registry;
 
   beforeEach(() => {
     const result = plus(express());
@@ -84,6 +84,31 @@ describe('plus', () => {
         .send({ name: 'J', email: 'invalid-email' });
 
       expect(response.status).toBe(400);
+    });
+
+    it('should pass Zod issues to the error handler on validation failure', async () => {
+      app.use(express.json());
+
+      app.post({
+        path: '/users',
+        body: z.object({ name: z.string() })
+      }, (req, res) => {
+        res.json(req.parsed.body);
+      });
+
+      app.use((err: Error & { status: number; errors: unknown }, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+        res.status(err.status).json({ message: err.message, errors: err.errors });
+      });
+
+      const response = await request(app)
+        .post('/users')
+        .send({ name: 1 });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('Validation failed');
+      expect(response.body.errors).toEqual([
+        expect.objectContaining({ code: 'invalid_type', path: ['name'] })
+      ]);
     });
 
     it('should validate path parameters', async () => {
@@ -338,7 +363,9 @@ describe('plus', () => {
       app.get({
         path: '/users'
       }, (req, res) => {
-        res.json({ format: req.parsed.query.format });
+        // Default schemas are applied at runtime, so their fields aren't in the route's inferred types
+        const query = req.parsed.query as { format: string };
+        res.json({ format: query.format });
       });
 
       const response = await request(app).get('/users');
@@ -360,7 +387,7 @@ describe('plus', () => {
         })
       }, (req, res) => {
         res.json({
-          format: req.parsed.query.format,
+          format: (req.parsed.query as { format?: string; limit: number }).format,
           limit: req.parsed.query.limit
         });
       });

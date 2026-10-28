@@ -2,10 +2,11 @@ import { Router } from 'express';
 import { createRegistry } from './registry';
 import {
   ApiOptions,
+  MountInfo,
   RouterPlus,
-  RouterPlusReturn
+  RouterPlusReturn,
 } from './types';
-import { enhanceHttpMethods, normalizeMountPath, MountInfo } from './utils';
+import { enhanceHttpMethods, recordRouterPlusMount } from './utils';
 
 /**
  * Enhances an Express Router with typed route handling and OpenAPI documentation
@@ -28,7 +29,7 @@ export const routerPlus = (router?: Router, opts: ApiOptions = {}): RouterPlusRe
   const methods = ['get', 'post', 'put', 'delete', 'patch', 'options', 'head'] as const;
 
   // Enhance the router with our augmented methods
-  enhanceHttpMethods(routerInstance, methods, registry.createEndpoint as any);
+  enhanceHttpMethods(routerInstance, methods, registry.createEndpoint);
 
   // Mark the router as a RouterPlus and attach registry
   Object.defineProperties(routerInstance, {
@@ -51,32 +52,14 @@ export const routerPlus = (router?: Router, opts: ApiOptions = {}): RouterPlusRe
     }
   });
 
-  // Make the router compatible with Express's app.use() typings
-  (routerInstance as any).__esModule = true;
-
   // Keep track of nested routers
-  const originalUse = routerInstance.use;
-  routerInstance.use = function(...args: any[]): Router {
-    // Case 1: path + router (router.use('/path', routerPlus))
-    if (args.length >= 2) {
-      const mountPath = typeof args[0] === 'string' ? args[0] : '/';
-      const middleware = args[1];
-
-      // If middleware is a RouterPlus, register its mount point
-      if (middleware && middleware._isRouterPlus && middleware._registry) {
-        const normalizedPath = normalizeMountPath(mountPath);
-        nestedMountRegistry.push({ path: normalizedPath, registry: middleware._registry, mounts: middleware._nestedMountRegistry });
-      }
-    }
-
-    // Case 2: Just router (router.use(routerPlus))
-    if (args.length === 1 && args[0] && args[0]._isRouterPlus && args[0]._registry) {
-      nestedMountRegistry.push({ path: '/', registry: args[0]._registry, mounts: args[0]._nestedMountRegistry });
-    }
+  const originalUse = routerInstance.use as unknown as (...args: unknown[]) => Router;
+  routerInstance.use = function(this: Router, ...args: unknown[]): Router {
+    recordRouterPlusMount(args, nestedMountRegistry);
 
     // Call the original use method
-    return originalUse.apply(this, args as any) as Router;
-  };
+    return originalUse.apply(this, args);
+  } as Router['use'];
 
   // Return enhanced router and registry
   return {

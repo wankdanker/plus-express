@@ -293,25 +293,27 @@ This works with any level of nesting, allowing you to organize your API however 
 
 ## Error Handling
 
-PlusExpress automatically handles validation errors and provides a standardized error format. When validation fails, the middleware automatically sends an error response without reaching your route handler.
+When validation fails, the middleware skips your route handler and passes an error to Express's error handling (`next(err)`) with a standardized shape:
 
-### Validation Error Response Format
+### Validation Error Format
 
 ```typescript
 {
-  "status": 400,
-  "message": "Validation failed",
-  "errors": [
+  status: 400,
+  message: "Validation failed",
+  errors: [ // Zod issues
     {
-      "code": "invalid_type",
-      "expected": "string",
-      "received": "number",
-      "path": ["body", "name"],
-      "message": "Expected string, received number"
+      expected: "string",
+      code: "invalid_type",
+      path: ["name"],
+      message: "Invalid input: expected string, received number"
     }
-  ]
+  ],
+  cause: ZodError // the original error
 }
 ```
+
+Without a custom error handler, Express's default handler responds with status 400. Add your own to send the `errors` array to clients.
 
 ### Custom Error Handling
 
@@ -519,6 +521,12 @@ Note: PlusExpress does update the original properties for backward compatibility
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+Add an entry for any user-facing change under `## [Unreleased]` in [CHANGELOG.md](CHANGELOG.md).
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for release notes.
 
 ## License
 

@@ -1,15 +1,12 @@
+import { IncomingMessage, ServerResponse } from 'http';
 import { Request, Response, NextFunction, Application, RequestHandler, ErrorRequestHandler, Router, IRouterMatcher } from 'express';
-import { z, ZodType, ZodObject, ZodTypeAny } from 'zod';
+import { z, ZodType, ZodObject } from 'zod';
 import { OpenAPIRegistry } from '@asteasolutions/zod-to-openapi';
 
 // Note: ErrorRequestHandler added to support Express error handlers (4-parameter middleware)
 
-// // Module augmentation to fix Express type compatibility
-// declare module 'express' {
-//   interface Application {
-//     use(...handlers: any[]): Application;
-//   }
-// }
+// Any Zod object schema (strict, loose, catchall, etc.)
+export type AnyZodObject = ZodObject<z.core.$ZodShape, z.core.$ZodObjectConfig>;
 
 // HTTP method types
 export type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete' | 'options' | 'head';
@@ -23,9 +20,9 @@ export interface ResponseObject {
 // Interface for endpoint options
 export interface EndpointOptions<
   TBody extends ZodType | undefined = undefined,
-  TParams extends ZodObject<any> | undefined = undefined,
-  TQuery extends ZodObject<any> | undefined = undefined,
-  THeaders extends ZodObject<any> | undefined = undefined
+  TParams extends AnyZodObject | undefined = undefined,
+  TQuery extends AnyZodObject | undefined = undefined,
+  THeaders extends AnyZodObject | undefined = undefined
 > {
   operationId?: string;
   summary?: string;
@@ -62,28 +59,30 @@ export type InferZodType<T extends ZodType | undefined> =
 // Define a handler function type that uses the validated request
 export type TypedExpressHandler<
   TBody extends ZodType | undefined = undefined,
-  TParams extends ZodObject<any> | undefined = undefined,
-  TQuery extends ZodObject<any> | undefined = undefined,
-  THeaders extends ZodObject<any> | undefined = undefined
+  TParams extends AnyZodObject | undefined = undefined,
+  TQuery extends AnyZodObject | undefined = undefined,
+  THeaders extends AnyZodObject | undefined = undefined
 > = (
   req: ValidatedRequest<
     TBody extends ZodType ? z.infer<TBody> : unknown,
-    TParams extends ZodObject<any> ? z.infer<TParams> : unknown,
-    TQuery extends ZodObject<any> ? z.infer<TQuery> : unknown,
-    THeaders extends ZodObject<any> ? z.infer<THeaders> : unknown
+    TParams extends AnyZodObject ? z.infer<TParams> : unknown,
+    TQuery extends AnyZodObject ? z.infer<TQuery> : unknown,
+    THeaders extends AnyZodObject ? z.infer<THeaders> : unknown
   >,
   res: Response,
   next: NextFunction
-) => any;
+) => unknown;
 
 // Augmented method type with proper generics for type inference
+// app.get(name) returns an app setting, which Express itself types as any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type AugmentedMethod<T> = ((name: string) => any) &
   IRouterMatcher<T> & {
     <
       TBody extends ZodType | undefined = undefined,
-      TParams extends ZodObject<any> | undefined = undefined,
-      TQuery extends ZodObject<any> | undefined = undefined,
-      THeaders extends ZodObject<any> | undefined = undefined
+      TParams extends AnyZodObject | undefined = undefined,
+      TQuery extends AnyZodObject | undefined = undefined,
+      THeaders extends AnyZodObject | undefined = undefined
     > (
       options: EndpointOptions<TBody, TParams, TQuery, THeaders>,
       ...handlers: TypedExpressHandler<TBody, TParams, TQuery, THeaders>[]
@@ -91,9 +90,9 @@ export type AugmentedMethod<T> = ((name: string) => any) &
 
     <
       TBody extends ZodType | undefined = undefined,
-      TParams extends ZodObject<any> | undefined = undefined,
-      TQuery extends ZodObject<any> | undefined = undefined,
-      THeaders extends ZodObject<any> | undefined = undefined
+      TParams extends AnyZodObject | undefined = undefined,
+      TQuery extends AnyZodObject | undefined = undefined,
+      THeaders extends AnyZodObject | undefined = undefined
     > (
       path: string,
       options: EndpointOptions<TBody, TParams, TQuery, THeaders>,
@@ -103,6 +102,10 @@ export type AugmentedMethod<T> = ((name: string) => any) &
 
 // Extended application interface with augmented methods
 export interface ExpressPlusApplication extends Omit<Application, 'get' | 'post' | 'put' | 'delete' | 'patch' | 'options' | 'head' | 'use'> {
+  // Omit drops call signatures, so restore the app's request listener signature
+  // (needed for http.createServer(app), supertest, etc.)
+  (req: Request | IncomingMessage, res: Response | ServerResponse): void;
+
   get: AugmentedMethod<Application>;
   post: AugmentedMethod<Application>;
   put: AugmentedMethod<Application>;
@@ -119,7 +122,8 @@ export interface ExpressPlusApplication extends Omit<Application, 'get' | 'post'
 }
 
 // Extended router interface with augmented methods
-export interface RouterPlus extends Omit<Router, 'get' | 'post' | 'put' | 'delete' | 'patch' | 'options' | 'head' | 'use'> {
+// (also extends RequestHandler, since Omit drops the router's call signature)
+export interface RouterPlus extends Omit<Router, 'get' | 'post' | 'put' | 'delete' | 'patch' | 'options' | 'head' | 'use'>, RequestHandler {
   get: AugmentedMethod<Router>;
   post: AugmentedMethod<Router>;
   put: AugmentedMethod<Router>;
@@ -136,7 +140,16 @@ export interface RouterPlus extends Omit<Router, 'get' | 'post' | 'put' | 'delet
   
   // Custom properties for internal tracking
   _isRouterPlus?: boolean;
-  _registry?: any;
+  _registry?: Registry;
+  _nestedMountRegistry?: MountInfo[];
+}
+
+// Tracks where a RouterPlus is mounted, plus the routers mounted within it
+// (shared by reference, so later mounts are seen)
+export interface MountInfo {
+  path: string;
+  registry: Registry;
+  mounts?: MountInfo[];
 }
 
 export type OpenAPIConfig = {
@@ -155,8 +168,8 @@ export type OpenAPIConfig = {
 
 // API initialization options
 export interface ApiOptions {
-  defaultQuerySchema?: ZodObject<any>;
-  defaultHeaderSchema?: ZodObject<any>;
+  defaultQuerySchema?: AnyZodObject;
+  defaultHeaderSchema?: AnyZodObject;
   defaultResponses?: Record<string | number, ResponseObject>;
   openApiConfig?: OpenAPIConfig;
 }
@@ -166,9 +179,9 @@ export interface Registry {
   // Core methods
   createEndpoint: <
     TBody extends ZodType = ZodType,
-    TParams extends ZodObject<any> = ZodObject<any>,
-    TQuery extends ZodObject<any> = ZodObject<any>,
-    THeaders extends ZodObject<any> = ZodObject<any>
+    TParams extends AnyZodObject = AnyZodObject,
+    TQuery extends AnyZodObject = AnyZodObject,
+    THeaders extends AnyZodObject = AnyZodObject
   >(
     method: HttpMethod,
     path: string,
@@ -181,8 +194,8 @@ export interface Registry {
   // Configuration methods (chainable)
   setInfo: (info: { title: string; version: string; description?: string }) => Registry;
   addServer: (server: { url: string; description?: string }) => Registry;
-  setDefaultQuerySchema: (schema: ZodObject<any>) => Registry;
-  setDefaultHeaderSchema: (schema: ZodObject<any>) => Registry;
+  setDefaultQuerySchema: (schema: AnyZodObject) => Registry;
+  setDefaultHeaderSchema: (schema: AnyZodObject) => Registry;
   setDefaultResponses: (responses: Record<string | number, ResponseObject>) => Registry;
   registerSecurityScheme: (name: string, scheme: any) => Registry;
   

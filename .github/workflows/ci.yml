@@ -6,18 +6,17 @@ on:
       - main
       - master
   pull_request:
-    branches:
-      - main
-      - master
 
 jobs:
   test:
-    name: Test & Build
+    name: Test & Build (Node ${{ matrix.node-version }}, Express ${{ matrix.express-version }})
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
         node-version: [22.x, 24.x]
+        # Both majors are in the express peerDependencies range
+        express-version: [4, 5]
 
     steps:
       - name: Checkout code
@@ -31,6 +30,10 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Install Express ${{ matrix.express-version }}
+        if: matrix.express-version != 5
+        run: npm install --no-save express@${{ matrix.express-version }}
 
       - name: Run linter
         run: npm run lint

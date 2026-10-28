@@ -16,7 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Type check**: `npm run type-check` (uses `tsconfig.json`, which includes the tests)
 - **Demo**: `npm run demo` (runs `example.ts` with tsx)
 
-Dev tooling needs Node ≥22.12 (Vitest 5). CI (`.github/workflows/ci.yml`, Node 22 and 24) runs lint, type-check, `test:ci`, and build. Both `package-lock.json` and `pnpm-lock.yaml` are kept in sync; CI uses `npm ci`. TypeScript is held at 6.x because typescript-eslint doesn't support 7 yet.
+Dev tooling needs Node ≥22.12 (Vitest 5). CI (`.github/workflows/ci.yml`) runs lint, type-check, `test:ci`, and build on every PR and on pushes to `main`, across Node 22/24 × Express 4/5. Express 4 is installed over the lockfile's Express 5 with `npm install --no-save express@4`. Both `package-lock.json` and `pnpm-lock.yaml` are kept in sync; CI uses `npm ci`. TypeScript is held at 6.x because typescript-eslint doesn't support 7 yet.
 
 ## Architecture
 
@@ -39,7 +39,7 @@ Everything lives in `src/`. The main moving parts:
 - Calling `generateOpenAPIDocument()` again re-registers the mounted routes into the app's base registry each time.
 - The remaining lint warnings are deliberate: `generateOpenAPIDocument(): any` and `registerSecurityScheme(scheme: any)` are public types, and tightening them would break consumers' compilation, so leave them for a major version.
 
-Tests use Vitest and supertest against a real Express app; they are all in `src/express-plus.test.ts`.
+Tests use Vitest and supertest against real Express apps, split by area in `src/`: `validation`, `openapi`, `routing`, `api` (public exports), `types` (type inference), and the original `express-plus` integration suite. `types.test.ts` uses `expectTypeOf` and `@ts-expect-error`, which only `npm run type-check` enforces (Vitest doesn't type-check), so run both. Known gaps are tracked as `it.todo`.
 
 ## Changelog
 

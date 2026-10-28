@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-10-28
+
 **Breaking changes:**
 
 - On validation failures, `err.errors` is now an array of Zod issues instead of a JSON string.
@@ -80,7 +82,8 @@ Initial release.
 - Chainable registry configuration: `setInfo`, `addServer`, `setDefaultQuerySchema`, `setDefaultHeaderSchema`, `setDefaultResponses`, and `registerSecurityScheme`.
 - Supports Zod 4 and Express 4 or 5.
 
-[Unreleased]: https://github.com/wankdanker/plus-express/compare/v2.1.1...HEAD
+[Unreleased]: https://github.com/wankdanker/plus-express/compare/v3.0.0...HEAD
+[3.0.0]: https://github.com/wankdanker/plus-express/compare/v2.1.1...v3.0.0
 [2.1.1]: https://github.com/wankdanker/plus-express/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/wankdanker/plus-express/compare/v2.0.2...v2.1.0
 [2.0.2]: https://github.com/wankdanker/plus-express/compare/v2.0.1...v2.0.2

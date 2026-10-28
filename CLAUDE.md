@@ -45,7 +45,9 @@ Tests use Vitest and supertest against real Express apps, split by area in `src/
 
 `CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Every user-facing change (public API, types, runtime behavior, dependencies consumers install) gets an entry under `## [Unreleased]` in the same PR, in the matching category (Added, Changed, Deprecated, Removed, Fixed, Security), with a PR link reference like `([#6])` plus a matching `[#6]: …/pull/6` link at the bottom. Skip internal-only changes (CI, dev tooling, tests, refactors with no visible effect). Call out anything that could break consumers.
 
-Releases go through `npm version <patch|minor|major>`. `scripts/changelog.mjs` runs as `preversion` (refuses to release with an empty `[Unreleased]`) and `version` (moves the entries under `## [X.Y.Z] - date`, updates the compare links, and stages the file into npm's version commit). Don't move entries by hand.
+Releases go through `npm version <patch|minor|major>` on an up-to-date `main`, then `git push --follow-tags`. `scripts/changelog.mjs` runs as `preversion` (refuses to release with an empty `[Unreleased]`) and `version` (moves the entries under `## [X.Y.Z] - date`, updates the compare links, and stages the file into npm's version commit). Don't move entries by hand.
+
+Pushing the `vX.Y.Z` tag runs `.github/workflows/release.yml`. It runs the full CI matrix (`ci.yml` via `workflow_call`), checks the tag matches `package.json` and is on `main`, builds the release notes from the changelog section (`changelog.mjs notes`), publishes with npm trusted publishing (OIDC in the `npm` GitHub environment, no token, automatic provenance), and creates the GitHub release. Prerelease versions (`X.Y.Z-beta.N`) publish to the `next` dist-tag. Don't publish from a local machine. Actions in the workflows are pinned to commit SHAs with a version comment; update both together.
 
 ## Code Style Guidelines
 - **Indentation**: 2 spaces

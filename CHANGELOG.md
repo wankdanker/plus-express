@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `AnyZodObject` type, used as the bound for object-schema generics. It accepts strict, loose and catchall object schemas. ([#6])
 - `MountInfo` type is now exported. ([#6])
+- Releases are published from GitHub Actions with npm provenance, so each version on npm can be traced to the commit and workflow that built it. ([#8])
 
 ### Changed
 
@@ -81,3 +82,4 @@ Initial release.
 [#5]: https://github.com/wankdanker/plus-express/pull/5
 [#6]: https://github.com/wankdanker/plus-express/pull/6
 [#7]: https://github.com/wankdanker/plus-express/pull/7
+[#8]: https://github.com/wankdanker/plus-express/pull/8

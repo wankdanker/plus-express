@@ -47,7 +47,7 @@ export function createRegistry(options: ApiOptions = {}): Registry {
   >(
     method: HttpMethod,
     path: string,
-    options: EndpointOptions<TBody, TParams, TQuery, THeaders> = {} as EndpointOptions<TBody, TParams, TQuery, THeaders>
+    options: EndpointOptions<TBody, TParams, TQuery, THeaders> = {}
   ): RequestHandler {
     const {
       operationId,

@@ -75,7 +75,7 @@ export type TypedExpressHandler<
 
 // Augmented method type with proper generics for type inference
 // app.get(name) returns an app setting, which Express itself types as any
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 export type AugmentedMethod<T> = ((name: string) => any) &
   IRouterMatcher<T> & {
     <

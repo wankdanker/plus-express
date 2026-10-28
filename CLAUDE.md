@@ -15,11 +15,11 @@ The repo uses pnpm only (version pinned with its hash in `package.json` `package
 - **Test (single run, as CI does)**: `pnpm run test:ci`
 - **Test a single file**: `pnpm vitest run src/express-plus.test.ts`; filter by name with `-t "pattern"`
 - **Coverage**: `pnpm run test:coverage`
-- **Lint**: `pnpm run lint` / `pnpm run lint:fix`
+- **Lint**: `pnpm run lint` / `pnpm run lint:fix` (oxlint with type-aware rules, configured in `.oxlintrc.json`; it honors `// oxlint-disable-next-line <rule>` comments)
 - **Type check**: `pnpm run type-check` (uses `tsconfig.json`, which includes the tests)
 - **Demo**: `pnpm run demo` (runs `example.ts` with tsx)
 
-Dev tooling needs Node ≥22.12 (Vitest 5). CI (`.github/workflows/ci.yml`) runs lint, type-check, `test:ci`, and build on every PR and on pushes to `main`, across Node 22/24 × Express 4/5. Express 4 is installed over the lockfile's Express 5 with `pnpm add --save-dev express@4`. TypeScript is held at 6.x because typescript-eslint doesn't support 7 yet.
+Dev tooling needs Node ≥22.12 (Vitest 5). CI (`.github/workflows/ci.yml`) runs lint, type-check, `test:ci`, and build on every PR and on pushes to `main`, across Node 22/24 × Express 4/5. Express 4 is installed over the lockfile's Express 5 with `pnpm add --save-dev express@4`. TypeScript is 7.x (the Go-based compiler); oxlint's type-aware rules (`oxlint-tsgolint`) are built on the same compiler, which is why it replaced ESLint, whose TypeScript plugin didn't support TypeScript 7.
 
 `pnpm-workspace.yaml` holds pnpm's supply-chain settings: versions younger than 7 days aren't resolved (`minimumReleaseAge`, matching Dependabot's cooldown), and installs fail when a new dependency wants to run a build script until it's approved or ignored there. pnpm stays on 10.x because Dependabot and GitHub's dependency graph can't read pnpm 12's two-document lockfile yet.
 

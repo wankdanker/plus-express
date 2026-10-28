@@ -61,7 +61,7 @@ export function plus(
   // Check if it's an Application (has listen method)
   // Applications have listen(), Routers don't
   if ('listen' in appOrRouter && typeof appOrRouter.listen === 'function') {
-    return expressPlus(appOrRouter as Application, opts);
+    return expressPlus(appOrRouter, opts);
   }
 
   // Otherwise, treat it as a Router

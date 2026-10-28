@@ -4,6 +4,8 @@ import tsparser from '@typescript-eslint/parser';
 
 export default [
   eslint.configs.recommended,
+  // Disable core rules the TypeScript compiler already checks (e.g. no-redeclare, which misreads overloads)
+  tseslint.configs['flat/eslint-recommended'],
   {
     files: ['src/**/*.ts'],
     languageOptions: {

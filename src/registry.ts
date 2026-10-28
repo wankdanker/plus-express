@@ -10,8 +10,10 @@ import {
   ApiOptions,
   AnyZodObject,
   MountInfo,
+  OpenAPIDocument,
   Registry,
   ResponseObject,
+  SecuritySchemeObject,
 } from './types';
 import {
   assertCompatibleComponents,
@@ -155,10 +157,14 @@ export function createRegistry(options: ApiOptions = {}, mounts: MountInfo[] = [
           enumerable: true,
         });
 
-        // Validate headers with merged schema
-        // Use partial to ensure we only validate the headers we care about
-        const headersSchema = mergedHeaderSchema.partial();
-        const parsedHeaders = headersSchema.parse(req.headers);
+        // Validate headers with merged schema. Headers it doesn't list are ignored, and missing
+        // required ones fail validation. Node lowercases incoming header names, so each header the
+        // schema names is looked up case-insensitively
+        const headerInput: Record<string, unknown> = { ...req.headers };
+        Object.keys(mergedHeaderSchema.shape).forEach((name) => {
+          headerInput[name] ??= req.headers[name.toLowerCase()];
+        });
+        const parsedHeaders = mergedHeaderSchema.parse(headerInput);
         validatedRequest.parsed.headers = parsedHeaders;
         // Merge validated headers back with original headers
         req.headers = { ...req.headers, ...parsedHeaders };
@@ -166,10 +172,15 @@ export function createRegistry(options: ApiOptions = {}, mounts: MountInfo[] = [
         // Proceed to next middleware
         next();
       } catch (error) {
-        // Create a standardized error response
+        // Anything other than a validation failure (e.g. a bug in a transform) is passed on
+        // unchanged, so the app's error handling treats it as a server error
+        if (!(error instanceof ZodError)) {
+          next(error);
+          return;
+        }
         next(Object.assign(new Error('Validation failed', { cause: error }), {
           status: 400,
-          errors: error instanceof ZodError ? error.issues : (error as Error).message,
+          errors: error.issues,
         }));
       }
     };
@@ -178,7 +189,7 @@ export function createRegistry(options: ApiOptions = {}, mounts: MountInfo[] = [
   /**
    * Generate the full OpenAPI document
    */
-  function generateOpenAPIDocument(config: Partial<OpenAPIConfig> = {}): any {
+  function generateOpenAPIDocument(config: Partial<OpenAPIConfig> = {}): OpenAPIDocument {
     // Mounted routers' definitions are combined for this call only; no registry is modified
     const definitionSets = [openApiRegistry.definitions, ...collectMountedDefinitions(mounts)];
     if (definitionSets.length > 1) {
@@ -240,7 +251,7 @@ export function createRegistry(options: ApiOptions = {}, mounts: MountInfo[] = [
   /**
    * Register a security scheme
    */
-  function registerSecurityScheme(name: string, scheme: any): Registry {
+  function registerSecurityScheme(name: string, scheme: SecuritySchemeObject): Registry {
     openApiRegistry.registerComponent('securitySchemes', name, scheme);
     return registry;
   }

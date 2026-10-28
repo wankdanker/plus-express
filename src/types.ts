@@ -1,12 +1,18 @@
 import { IncomingMessage, ServerResponse } from 'http';
 import { Request, Response, NextFunction, Application, RequestHandler, ErrorRequestHandler, Router, IRouterMatcher } from 'express';
 import { z, ZodType, ZodObject } from 'zod';
-import { OpenAPIRegistry } from '@asteasolutions/zod-to-openapi';
+import { OpenAPIRegistry, OpenApiGeneratorV3 } from '@asteasolutions/zod-to-openapi';
 
 // Note: ErrorRequestHandler added to support Express error handlers (4-parameter middleware)
 
 // Any Zod object schema (strict, loose, catchall, etc.)
 export type AnyZodObject = ZodObject<z.core.$ZodShape, z.core.$ZodObjectConfig>;
+
+// A generated OpenAPI 3.0 document
+export type OpenAPIDocument = ReturnType<OpenApiGeneratorV3['generateDocument']>;
+
+// A security scheme (or a $ref to one), as stored in components.securitySchemes
+export type SecuritySchemeObject = NonNullable<NonNullable<OpenAPIDocument['components']>['securitySchemes']>[string];
 
 // HTTP method types
 export type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete' | 'options' | 'head';
@@ -194,7 +200,7 @@ export interface Registry {
   ) => RequestHandler;
   
   // OpenAPI Document Generation
-  generateOpenAPIDocument: (config?: Partial<OpenAPIConfig>) => any;
+  generateOpenAPIDocument: (config?: Partial<OpenAPIConfig>) => OpenAPIDocument;
   
   // Configuration methods (chainable)
   setInfo: (info: { title: string; version: string; description?: string }) => Registry;
@@ -202,7 +208,7 @@ export interface Registry {
   setDefaultQuerySchema: (schema: AnyZodObject) => Registry;
   setDefaultHeaderSchema: (schema: AnyZodObject) => Registry;
   setDefaultResponses: (responses: Record<string | number, ResponseObject>) => Registry;
-  registerSecurityScheme: (name: string, scheme: any) => Registry;
+  registerSecurityScheme: (name: string, scheme: SecuritySchemeObject) => Registry;
   
   // Access to raw registry
   getRawRegistry: () => OpenAPIRegistry;

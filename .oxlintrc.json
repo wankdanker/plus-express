@@ -5,7 +5,7 @@
     "correctness": "error"
   },
   "rules": {
-    "typescript/no-explicit-any": "warn",
+    "typescript/no-explicit-any": "error",
     "typescript/no-non-null-assertion": "warn",
     "typescript/no-unnecessary-type-assertion": "error",
     "no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],

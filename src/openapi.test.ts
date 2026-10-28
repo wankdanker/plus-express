@@ -1,6 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import express from 'express';
-import { plus, z } from './index';
+import { plus, z, OpenAPIDocument } from './index';
+
+// Parameters as generated in these tests: inline objects, never $refs
+type Parameter = { name: string; in: string; required?: boolean; schema?: Record<string, unknown> };
+
+/**
+ * Returns the parameters of an operation in a generated document
+ */
+function parametersOf(doc: OpenAPIDocument, path: string): Parameter[] {
+  return (doc.paths[path]?.get?.parameters ?? []) as Parameter[];
+}
 
 describe('OpenAPI document', () => {
   it('converts Express path parameters to OpenAPI templates', () => {
@@ -15,7 +25,7 @@ describe('OpenAPI document', () => {
     const doc = registry.generateOpenAPIDocument();
 
     expect(Object.keys(doc.paths)).toEqual(['/users/{userId}/posts/{postId}']);
-    expect(doc.paths['/users/{userId}/posts/{postId}'].get.parameters).toEqual([
+    expect(doc.paths['/users/{userId}/posts/{postId}'].get?.parameters).toEqual([
       expect.objectContaining({ name: 'userId', in: 'path', required: true }),
       expect.objectContaining({ name: 'postId', in: 'path', required: true }),
     ]);
@@ -32,10 +42,10 @@ describe('OpenAPI document', () => {
 
     const doc = registry.generateOpenAPIDocument();
 
-    expect(doc.paths['/users/{id}'].get.parameters).toEqual([
+    expect(doc.paths['/users/{id}'].get?.parameters).toEqual([
       expect.objectContaining({ name: 'id', in: 'path', required: true }),
     ]);
-    expect(doc.paths['/users/{id}'].get.parameters[0].schema).not.toHaveProperty('nullable');
+    expect(parametersOf(doc, '/users/{id}')[0].schema).not.toHaveProperty('nullable');
   });
 
   it('documents coerced query and header parameters by their optionality, without nullable', () => {
@@ -53,18 +63,18 @@ describe('OpenAPI document', () => {
       res.end();
     });
 
-    const parameters = registry.generateOpenAPIDocument().paths['/items'].get.parameters;
-    const byName = (name: string) => parameters.find((parameter: { name: string }) => parameter.name === name);
+    const parameters = parametersOf(registry.generateOpenAPIDocument(), '/items');
+    const byName = (name: string) => parameters.find((parameter) => parameter.name === name);
 
     expect(byName('page')).toMatchObject({ in: 'query', required: true, schema: { type: 'integer' } });
-    expect(byName('page').schema).not.toHaveProperty('nullable');
+    expect(byName('page')?.schema).not.toHaveProperty('nullable');
     expect(byName('limit')).toMatchObject({ in: 'query', required: false });
-    expect(byName('limit').schema).not.toHaveProperty('nullable');
+    expect(byName('limit')?.schema).not.toHaveProperty('nullable');
     expect(byName('size')).toMatchObject({ in: 'query', required: false });
     expect(byName('x-page-size')).toMatchObject({ in: 'header', required: true });
-    expect(byName('x-page-size').schema).not.toHaveProperty('nullable');
+    expect(byName('x-page-size')?.schema).not.toHaveProperty('nullable');
     // Not coerced at the top level (the coercion is inside .nullable()), so left as generated
-    expect(byName('archived').schema).toMatchObject({ nullable: true });
+    expect(byName('archived')?.schema).toMatchObject({ nullable: true });
   });
 
   it('documents coerced parameters of mounted routers', () => {
@@ -75,7 +85,7 @@ describe('OpenAPI document', () => {
     });
     app.use('/api', router);
 
-    const [page] = registry.generateOpenAPIDocument().paths['/api/items'].get.parameters;
+    const [page] = parametersOf(registry.generateOpenAPIDocument(), '/api/items');
 
     expect(page).toMatchObject({ name: 'page', in: 'query', required: true });
     expect(page.schema).not.toHaveProperty('nullable');
@@ -117,9 +127,10 @@ describe('OpenAPI document', () => {
       res.end();
     });
 
-    const operation = registry.generateOpenAPIDocument().paths['/users'].post;
+    const requestBody = registry.generateOpenAPIDocument().paths['/users'].post?.requestBody;
+    const content = requestBody && 'content' in requestBody ? requestBody.content : {};
 
-    expect(operation.requestBody.content['application/json'].schema).toEqual({
+    expect(content['application/json'].schema).toEqual({
       type: 'object',
       properties: {
         name: { type: 'string', description: 'Display name', example: 'Ada' },
@@ -139,7 +150,7 @@ describe('OpenAPI document', () => {
       res.end();
     });
 
-    const parameters = registry.generateOpenAPIDocument().paths['/search'].get.parameters;
+    const parameters = registry.generateOpenAPIDocument().paths['/search'].get?.parameters;
 
     expect(parameters).toEqual(expect.arrayContaining([
       expect.objectContaining({ name: 'q', in: 'query', required: true }),
@@ -157,7 +168,7 @@ describe('OpenAPI document', () => {
       res.end();
     });
 
-    const parameters = registry.generateOpenAPIDocument().paths['/users'].get.parameters;
+    const parameters = registry.generateOpenAPIDocument().paths['/users'].get?.parameters;
 
     expect(parameters).toEqual(expect.arrayContaining([
       expect.objectContaining({ name: 'format', in: 'query' }),
@@ -183,7 +194,9 @@ describe('OpenAPI document', () => {
       res.end();
     });
 
-    const responses = registry.generateOpenAPIDocument().paths['/users'].get.responses;
+    // Response objects as generated here, never $refs
+    const responses = registry.generateOpenAPIDocument().paths['/users'].get?.responses as
+      Record<string, { description: string; content: Record<string, { schema: unknown }> }>;
 
     expect(Object.keys(responses).sort()).toEqual(['200', '500']);
     expect(responses['200'].description).toBe('List of users');
@@ -300,7 +313,7 @@ describe('components of mounted routers', () => {
     });
     app.use('/api', router);
 
-    expect(registry.generateOpenAPIDocument().components.securitySchemes).toEqual({ bearer });
+    expect(registry.generateOpenAPIDocument().components?.securitySchemes).toEqual({ bearer });
   });
 
   it("includes schemas registered on a nested router's registry", () => {
@@ -311,7 +324,7 @@ describe('components of mounted routers', () => {
     parent.use('/child', child);
     app.use('/api', parent);
 
-    expect(registry.generateOpenAPIDocument().components.schemas).toEqual({
+    expect(registry.generateOpenAPIDocument().components?.schemas).toEqual({
       User: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
     });
   });
@@ -328,8 +341,8 @@ describe('components of mounted routers', () => {
 
     const { components } = registry.generateOpenAPIDocument();
 
-    expect(components.securitySchemes).toEqual({ bearer });
-    expect(Object.keys(components.schemas)).toEqual(['User']);
+    expect(components?.securitySchemes).toEqual({ bearer });
+    expect(Object.keys(components?.schemas ?? {})).toEqual(['User']);
   });
 
   it('throws when two registries define a component with the same name differently', () => {

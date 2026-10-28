@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+**Breaking changes:**
+
+- Requests missing a required header now fail validation with a 400.
+- Errors other than Zod validation failures thrown while parsing are passed to `next()` unchanged instead of becoming 400s.
+- `generateOpenAPIDocument()` and `registerSecurityScheme()` are typed instead of `any`, so code reading into the document may need optional chaining.
+
+Details are in the entries below.
+
+### Changed
+
+- **Breaking:** required headers are now enforced. A request missing a header that the route's header schema (or the default header schema) requires fails validation with a 400, as the OpenAPI document already said. Previously every header was validated as optional, so the handler ran with the header `undefined`. Mark headers that may be absent with `.optional()` or `.default()`. ([#24])
+- **Breaking:** only Zod validation failures become 400 "Validation failed" errors. Any other error thrown while parsing, such as a bug in a `.transform()`, is now passed to `next()` unchanged, so Express answers it with a 500 by default. Previously it became a 400 that blamed the client and sent the internal error message as `err.errors`, which is now always an array of Zod issues. Report expected failures from a refinement with `.refine()` or `ctx.addIssue()`; they're still 400s. ([#24])
+- **Breaking (types):** `generateOpenAPIDocument()` now returns the `OpenAPIDocument` type (the OpenAPI 3.0 document type from zod-to-openapi) instead of `any`, and `registerSecurityScheme()` takes a `SecuritySchemeObject` instead of `any`. Code that reads into the document may need optional chaining where the OpenAPI types mark a field optional, for example `doc.paths['/users'].get?.summary` and `doc.components?.securitySchemes`. Invalid security scheme objects are now compile errors. Both types are exported. ([#24])
+- Header names in header schemas are now matched case-insensitively, so `'X-Api-Key'` finds the incoming `x-api-key`. ([#24])
+
 ## [3.1.0] - 2026-10-28
 
 ### Added
@@ -117,4 +132,5 @@ Initial release.
 [#8]: https://github.com/wankdanker/plus-express/pull/8
 [#21]: https://github.com/wankdanker/plus-express/pull/21
 [#23]: https://github.com/wankdanker/plus-express/pull/23
+[#24]: https://github.com/wankdanker/plus-express/pull/24
 [GHSA-w686-3925-7pp4]: https://github.com/wankdanker/plus-express/security/advisories/GHSA-w686-3925-7pp4

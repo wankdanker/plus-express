@@ -1,11 +1,45 @@
-# express-pluss Development Guide
+# CLAUDE.md
 
-## Build & Development Commands
-- **Build**: `npm run build` - Compiles TypeScript to JavaScript
-- **Test**: `npm run test` - Runs all Vitest tests
-- **Test Single File**: `npm run test -- path/to/test.ts` - Run specific test
-- **Lint**: `npm run lint` - Checks code with ESLint
-- **Demo**: `npm run demo` - Runs example.ts using tsx
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project
+
+`plus-express` (npm name; repo dir is `express-plus`) wraps Express 4/5 apps and routers so route methods accept a Zod-based options object, which both validates requests at runtime and registers the route in an OpenAPI 3.0 document (via `@asteasolutions/zod-to-openapi`). Express is a peer dependency. Zod is v4.
+
+## Commands
+- **Build**: `npm run build` (tsc → `dist/`; test files are excluded)
+- **Test (watch)**: `npm run test` — Vitest runs in watch mode by default
+- **Test (single run, as CI does)**: `npm run test:ci`
+- **Test a single file**: `npx vitest run src/express-plus.test.ts`; filter by name with `-t "pattern"`
+- **Coverage**: `npm run test:coverage`
+- **Lint**: `npm run lint` / `npm run lint:fix`
+- **Type check**: `npm run type-check`
+- **Demo**: `npm run demo` (runs `example.ts` with tsx)
+
+CI (`.github/workflows/ci.yml`, Node 20 and 22) runs lint, type-check, `test:ci`, and build. Both `package-lock.json` and `pnpm-lock.yaml` exist, but CI uses `npm ci`.
+
+## Architecture
+
+Everything lives in `src/`. The main moving parts:
+
+- **`index.ts`**: public entry point. `plus(appOrRouter?, opts?)` dispatches on duck typing: a target with `listen()` goes to `expressPlus`, anything else goes to `routerPlus`, and no argument creates a new Router. It also calls `extendZodWithOpenApi(z)` and re-exports `z`, so users should import `z` from this package.
+- **`registry.ts`** (`createRegistry`): one registry per app/router. It wraps an `OpenAPIRegistry` and holds the mutable defaults (query/header schemas, responses) plus the chainable builder methods (`setInfo`, `addServer`, …). `createEndpoint(method, path, opts)` registers the path with OpenAPI (it converts `:param` to `{param}`) and returns the validation middleware. Defaults are merged when each route is defined, so calling `setDefault*` afterwards does not affect routes already registered.
+- **`utils.ts`**: `enhanceHttpMethods` monkey-patches `get/post/put/delete/patch/options/head` on the target. It handles two call shapes: `(optionsWithPath, ...handlers)` and `(path, options, handler, ...)`. Both inject the validation middleware before the handlers. Any other call shape falls through to plain Express.
+- **`express-plus.ts` / `router-plus.ts`**: wrap `use()` to record mounted RouterPlus instances (detected through the non-enumerable `_isRouterPlus`, `_registry` and `_nestedMountRegistry` properties) as a `MountInfo` tree. Each entry keeps a reference to the mounted router's own nested-mount list, so routers nested later are still found. `expressPlus` also overrides `registry.generateOpenAPIDocument`: each time it is called, `registerMountedRoutes` walks that tree and re-registers every mounted router's routes into the app's registry with the full mount path prepended. Only the app combines registries; calling a router's own `generateOpenAPIDocument` covers just that router's routes.
+- **`types.ts`**: all shared types. `AugmentedMethod<T>` provides the typed overloads that infer handler `req.parsed` types from the Zod schemas. `ExpressPlusApplication` and `RouterPlus` `Omit` and then redeclare the HTTP methods and `use()`.
+
+### Validation behavior
+- Validated values go to `req.parsed.{body,params,query,headers}` and are also written back onto `req.body`/`req.params`/`req.query`/`req.headers` for compatibility.
+- Query and header schemas are always run, merged with the defaults. Headers are validated with `.partial()`.
+- On failure, the middleware calls `next(err)` with `err.status = 400`, `err.message = 'Validation failed'`, and `err.errors` set to the Zod issues. It does not send a response itself, so formatting is left to the app's error handler.
+
+### Known gaps
+- Mounted routers contribute only their `route` definitions to the app's doc. Their components and security schemes are dropped.
+- A RouterPlus is detected only as the single handler passed to `use()` (`use(router)` or `use(path, router)`). In `use(path, mw, router)`, the router's routes still work but don't appear in the doc.
+- `combineRegistries` in `utils.ts` is imported but never used.
+- Calling `generateOpenAPIDocument()` again re-registers the mounted routes into the app's base registry each time.
+
+Tests use Vitest and supertest against a real Express app; they are all in `src/express-plus.test.ts`.
 
 ## Code Style Guidelines
 - **Indentation**: 2 spaces

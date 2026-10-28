@@ -12,6 +12,7 @@ import {
   Registry,
   ResponseObject,
 } from './types';
+import { requirePathParameters } from './utils';
 
 // Extend Zod with OpenAPI support
 extendZodWithOpenApi(z);
@@ -170,10 +171,10 @@ export function createRegistry(options: ApiOptions = {}): Registry {
    */
   function generateOpenAPIDocument(config: Partial<OpenAPIConfig> = {}): any {
     const generator = new OpenApiGeneratorV3(openApiRegistry.definitions);
-    return generator.generateDocument({
+    return requirePathParameters(generator.generateDocument({
       ...openApiConfig,
       ...config
-    });
+    }));
   }
 
   /**

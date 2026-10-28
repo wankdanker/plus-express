@@ -66,14 +66,14 @@ export function createRegistry(options: ApiOptions = {}): Registry {
     let mergedQuerySchema = defaultQuerySchema;
     if (query) {
       // Create a new schema that extends the default
-      mergedQuerySchema = defaultQuerySchema.merge(query);
+      mergedQuerySchema = defaultQuerySchema.extend(query.shape);
     }
 
     // Merge the route-specific header schema with the default header schema
     let mergedHeaderSchema = defaultHeaderSchema;
     if (headers) {
       // Create a new schema that extends the default
-      mergedHeaderSchema = defaultHeaderSchema.merge(headers);
+      mergedHeaderSchema = defaultHeaderSchema.extend(headers.shape);
     }
 
     // Merge responses with defaults (route-specific responses take precedence)

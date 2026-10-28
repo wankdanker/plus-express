@@ -82,7 +82,8 @@ export function createExpressPlus(app?: Application, options = {}) {
       app = express();
     } catch (error) {
       throw new Error(
-        'Express is not installed. Please install express or provide an express application instance.'
+        'Express is not installed. Please install express or provide an express application instance.',
+        { cause: error },
       );
     }
   }

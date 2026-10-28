@@ -1,0 +1,26 @@
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    # Let new releases age before adopting them, so compromised versions are likely caught first
+    cooldown:
+      default-days: 7
+    groups:
+      # One PR for routine dev tooling bumps; majors and runtime dependencies stay separate
+      dev-dependencies:
+        dependency-type: development
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      # Workflows pin actions to commit SHAs; this keeps the pins and version comments current
+      github-actions:
+        patterns: ['*']

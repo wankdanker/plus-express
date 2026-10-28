@@ -31,23 +31,28 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'npm'
+          # pnpm isn't installed until the next step, so setup-node can't cache its store
+          package-manager-cache: false
+
+      # Installs the pnpm version pinned in package.json's packageManager field, checking its hash
+      - name: Enable pnpm
+        run: corepack enable pnpm
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Install Express ${{ matrix.express-version }}
         if: matrix.express-version != 5
-        run: npm install --no-save express@${{ matrix.express-version }}
+        run: pnpm add --save-dev express@${{ matrix.express-version }}
 
       - name: Run linter
-        run: npm run lint
+        run: pnpm run lint
 
       - name: Type check
-        run: npm run type-check
+        run: pnpm run type-check
 
       - name: Run tests
-        run: npm run test:ci
+        run: pnpm run test:ci
 
       - name: Build
-        run: npm run build
+        run: pnpm run build

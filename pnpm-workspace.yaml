@@ -1,0 +1,10 @@
+# Supply-chain settings for pnpm (this is a single package, not a workspace)
+
+# Don't resolve versions published in the last 7 days (in minutes), matching Dependabot's cooldown
+minimumReleaseAge: 10080
+
+# Fail the install when a dependency wants to run a build script that isn't listed below
+strictDepBuilds: true
+# esbuild's postinstall only verifies its platform binary, which it also finds without it
+ignoredBuiltDependencies:
+  - esbuild

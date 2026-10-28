@@ -7,16 +7,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 `plus-express` (npm name; repo dir is `express-plus`) wraps Express 4/5 apps and routers so route methods accept a Zod-based options object, which both validates requests at runtime and registers the route in an OpenAPI 3.0 document (via `@asteasolutions/zod-to-openapi`). Express is a peer dependency. Zod is v4.
 
 ## Commands
-- **Build**: `npm run build` (`tsc -p tsconfig.build.json` → `dist/`; excludes test files)
-- **Test (watch)**: `npm run test` — Vitest runs in watch mode by default
-- **Test (single run, as CI does)**: `npm run test:ci`
-- **Test a single file**: `npx vitest run src/express-plus.test.ts`; filter by name with `-t "pattern"`
-- **Coverage**: `npm run test:coverage`
-- **Lint**: `npm run lint` / `npm run lint:fix`
-- **Type check**: `npm run type-check` (uses `tsconfig.json`, which includes the tests)
-- **Demo**: `npm run demo` (runs `example.ts` with tsx)
+The repo uses pnpm only (version pinned with its hash in `package.json` `packageManager`; `corepack enable pnpm` installs it). Don't add a `package-lock.json`.
 
-Dev tooling needs Node ≥22.12 (Vitest 5). CI (`.github/workflows/ci.yml`) runs lint, type-check, `test:ci`, and build on every PR and on pushes to `main`, across Node 22/24 × Express 4/5. Express 4 is installed over the lockfile's Express 5 with `npm install --no-save express@4`. Both `package-lock.json` and `pnpm-lock.yaml` are kept in sync; CI uses `npm ci`. TypeScript is held at 6.x because typescript-eslint doesn't support 7 yet.
+- **Install**: `pnpm install`
+- **Build**: `pnpm run build` (`tsc -p tsconfig.build.json` → `dist/`; excludes test files)
+- **Test (watch)**: `pnpm test` — Vitest runs in watch mode by default
+- **Test (single run, as CI does)**: `pnpm run test:ci`
+- **Test a single file**: `pnpm vitest run src/express-plus.test.ts`; filter by name with `-t "pattern"`
+- **Coverage**: `pnpm run test:coverage`
+- **Lint**: `pnpm run lint` / `pnpm run lint:fix`
+- **Type check**: `pnpm run type-check` (uses `tsconfig.json`, which includes the tests)
+- **Demo**: `pnpm run demo` (runs `example.ts` with tsx)
+
+Dev tooling needs Node ≥22.12 (Vitest 5). CI (`.github/workflows/ci.yml`) runs lint, type-check, `test:ci`, and build on every PR and on pushes to `main`, across Node 22/24 × Express 4/5. Express 4 is installed over the lockfile's Express 5 with `pnpm add --save-dev express@4`. TypeScript is held at 6.x because typescript-eslint doesn't support 7 yet.
+
+`pnpm-workspace.yaml` holds pnpm's supply-chain settings: versions younger than 7 days aren't resolved (`minimumReleaseAge`, matching Dependabot's cooldown), and installs fail when a new dependency wants to run a build script until it's approved or ignored there. pnpm stays on 10.x because Dependabot and GitHub's dependency graph can't read pnpm 12's two-document lockfile yet.
 
 ## Architecture
 
@@ -39,15 +44,15 @@ Everything lives in `src/`. The main moving parts:
 - Calling `generateOpenAPIDocument()` again re-registers the mounted routes into the app's base registry each time.
 - The remaining lint warnings are deliberate: `generateOpenAPIDocument(): any` and `registerSecurityScheme(scheme: any)` are public types, and tightening them would break consumers' compilation, so leave them for a major version.
 
-Tests use Vitest and supertest against real Express apps, split by area in `src/`: `validation`, `openapi`, `routing`, `api` (public exports), `types` (type inference), and the original `express-plus` integration suite. `types.test.ts` uses `expectTypeOf` and `@ts-expect-error`, which only `npm run type-check` enforces (Vitest doesn't type-check), so run both. Known gaps are tracked as `it.todo`.
+Tests use Vitest and supertest against real Express apps, split by area in `src/`: `validation`, `openapi`, `routing`, `api` (public exports), `types` (type inference), and the original `express-plus` integration suite. `types.test.ts` uses `expectTypeOf` and `@ts-expect-error`, which only `pnpm run type-check` enforces (Vitest doesn't type-check), so run both. Known gaps are tracked as `it.todo`.
 
 ## Changelog
 
 `CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Every user-facing change (public API, types, runtime behavior, dependencies consumers install) gets an entry under `## [Unreleased]` in the same PR, in the matching category (Added, Changed, Deprecated, Removed, Fixed, Security), with a PR link reference like `([#6])` plus a matching `[#6]: …/pull/6` link at the bottom. Skip internal-only changes (CI, dev tooling, tests, refactors with no visible effect). Call out anything that could break consumers.
 
-Releases go through `npm version <patch|minor|major>` on an up-to-date `main`, then `git push --follow-tags`. `scripts/changelog.mjs` runs as `preversion` (refuses to release with an empty `[Unreleased]`) and `version` (moves the entries under `## [X.Y.Z] - date`, updates the compare links, and stages the file into npm's version commit). Don't move entries by hand.
+Releases go through `pnpm version <patch|minor|major>` (`npm version` works the same) on an up-to-date `main`, then `git push --follow-tags`. `scripts/changelog.mjs` runs as `preversion` (refuses to release with an empty `[Unreleased]`) and `version` (moves the entries under `## [X.Y.Z] - date`, updates the compare links, and stages the file into the version commit). Don't move entries by hand.
 
-Pushing the `vX.Y.Z` tag runs `.github/workflows/release.yml`. It runs the full CI matrix (`ci.yml` via `workflow_call`), checks the tag matches `package.json` and is on `main`, builds the release notes from the changelog section (`changelog.mjs notes`), publishes with npm trusted publishing (OIDC in the `npm` GitHub environment, no token, automatic provenance), and creates the GitHub release. Prerelease versions (`X.Y.Z-beta.N`) publish to the `next` dist-tag. Don't publish from a local machine.
+Pushing the `vX.Y.Z` tag runs `.github/workflows/release.yml`. It runs the full CI matrix (`ci.yml` via `workflow_call`), checks the tag matches `package.json` and is on `main`, builds the release notes from the changelog section (`changelog.mjs notes`), installs with pnpm, publishes with `npm publish` using npm trusted publishing (OIDC in the `npm` GitHub environment, no token, automatic provenance), and creates the GitHub release. Prerelease versions (`X.Y.Z-beta.N`) publish to the `next` dist-tag. Don't publish from a local machine.
 
 Repository protections (configured in GitHub settings, not files):
 - The `npm` environment only accepts `v*` tags and requires the maintainer's approval in the Actions tab, so the publish job waits after tests pass.

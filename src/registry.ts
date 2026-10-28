@@ -155,10 +155,14 @@ export function createRegistry(options: ApiOptions = {}, mounts: MountInfo[] = [
           enumerable: true,
         });
 
-        // Validate headers with merged schema
-        // Use partial to ensure we only validate the headers we care about
-        const headersSchema = mergedHeaderSchema.partial();
-        const parsedHeaders = headersSchema.parse(req.headers);
+        // Validate headers with merged schema. Headers it doesn't list are ignored, and missing
+        // required ones fail validation. Node lowercases incoming header names, so each header the
+        // schema names is looked up case-insensitively
+        const headerInput: Record<string, unknown> = { ...req.headers };
+        Object.keys(mergedHeaderSchema.shape).forEach((name) => {
+          headerInput[name] ??= req.headers[name.toLowerCase()];
+        });
+        const parsedHeaders = mergedHeaderSchema.parse(headerInput);
         validatedRequest.parsed.headers = parsedHeaders;
         // Merge validated headers back with original headers
         req.headers = { ...req.headers, ...parsedHeaders };

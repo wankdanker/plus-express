@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Breaking:** required headers are now enforced. A request missing a header that the route's header schema (or the default header schema) requires fails validation with a 400, as the OpenAPI document already said. Previously every header was validated as optional, so the handler ran with the header `undefined`. Mark headers that may be absent with `.optional()` or `.default()`. ([#24])
+- Header names in header schemas are now matched case-insensitively, so `'X-Api-Key'` finds the incoming `x-api-key`. ([#24])
 - `generateOpenAPIDocument()` now throws when two registries in the document (the app's and its mounted routers') define a component with the same name but different contents, such as two different schemas both named `User`. Previously one was kept silently and routes referencing the other were documented wrongly. Identical definitions are still allowed. ([#23])
 
 ### Fixed
@@ -114,4 +116,5 @@ Initial release.
 [#8]: https://github.com/wankdanker/plus-express/pull/8
 [#21]: https://github.com/wankdanker/plus-express/pull/21
 [#23]: https://github.com/wankdanker/plus-express/pull/23
+[#24]: https://github.com/wankdanker/plus-express/pull/24
 [GHSA-w686-3925-7pp4]: https://github.com/wankdanker/plus-express/security/advisories/GHSA-w686-3925-7pp4

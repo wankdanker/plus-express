@@ -242,6 +242,65 @@ describe('request validation', () => {
       expect(response.status).toBe(400);
       expect(response.body.errors).toEqual([expect.objectContaining({ path: ['x-page-size'] })]);
     });
+
+    it('rejects a request missing a required header', async () => {
+      const { app } = createApp();
+      let handlerCalled = false;
+      app.get({
+        path: '/reports',
+        headers: z.object({ 'x-api-key': z.string() }),
+      }, (req, res) => {
+        handlerCalled = true;
+        res.json({});
+      });
+      handleErrors(app);
+
+      const response = await request(app).get('/reports');
+
+      expect(response.status).toBe(400);
+      expect(response.body.errors).toEqual([expect.objectContaining({ path: ['x-api-key'] })]);
+      expect(handlerCalled).toBe(false);
+    });
+
+    it('accepts a request missing an optional or defaulted header', async () => {
+      const { app } = createApp();
+      app.get({
+        path: '/reports',
+        headers: z.object({ 'x-trace-id': z.string().optional(), 'x-format': z.string().default('json') }),
+      }, (req, res) => {
+        res.json(req.parsed.headers);
+      });
+
+      const response = await request(app).get('/reports');
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ 'x-format': 'json' });
+    });
+
+    it('matches header names case-insensitively', async () => {
+      const { app } = createApp();
+      app.get({
+        path: '/reports',
+        headers: z.object({ 'X-Api-Key': z.string() }),
+      }, (req, res) => {
+        res.json({ key: req.parsed.headers['X-Api-Key'] });
+      });
+
+      const response = await request(app).get('/reports').set('x-api-key', 'secret');
+
+      expect(response.body).toEqual({ key: 'secret' });
+    });
+
+    it('enforces required headers from the default header schema on every route', async () => {
+      const { app } = createApp({ defaultHeaderSchema: z.object({ 'x-tenant': z.string() }) });
+      app.get({ path: '/items' }, (req, res) => {
+        res.json({});
+      });
+      handleErrors(app);
+
+      expect((await request(app).get('/items')).status).toBe(400);
+      expect((await request(app).get('/items').set('X-Tenant', 'acme')).status).toBe(200);
+    });
   });
 
   describe('routes without schemas', () => {

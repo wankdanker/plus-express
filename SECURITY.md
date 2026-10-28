@@ -2,12 +2,13 @@
 
 ## Supported versions
 
-Security fixes are released for the latest major version.
+Security fixes are released for the latest major version. The previous major gets security fixes for six months after the next one is released, to allow time to upgrade.
 
-| Version | Supported |
-| ------- | --------- |
-| 3.x     | Yes       |
-| < 3.0   | No        |
+| Version | Supported                          |
+| ------- | ---------------------------------- |
+| 4.x     | Yes                                |
+| 3.x     | Security fixes until 2027-04-28    |
+| < 3.0   | No                                 |
 
 ## Reporting a vulnerability
 

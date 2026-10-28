@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- The package now includes the MIT `LICENSE` file. ([#21])
+
 ## [3.0.0] - 2026-10-28
 
 **Breaking changes:**
@@ -94,3 +98,4 @@ Initial release.
 [#6]: https://github.com/wankdanker/plus-express/pull/6
 [#7]: https://github.com/wankdanker/plus-express/pull/7
 [#8]: https://github.com/wankdanker/plus-express/pull/8
+[#21]: https://github.com/wankdanker/plus-express/pull/21

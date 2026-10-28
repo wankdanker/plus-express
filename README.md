@@ -530,4 +530,4 @@ See [CHANGELOG.md](CHANGELOG.md) for release notes.
 
 ## License
 
-MIT
+MIT. See [LICENSE](LICENSE).

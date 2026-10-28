@@ -13,7 +13,9 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "type-check": "tsc --noEmit",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "preversion": "node scripts/changelog.mjs check",
+    "version": "node scripts/changelog.mjs release && git add CHANGELOG.md"
   },
   "keywords": [
     "express",

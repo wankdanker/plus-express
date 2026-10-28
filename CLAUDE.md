@@ -41,6 +41,12 @@ Everything lives in `src/`. The main moving parts:
 
 Tests use Vitest and supertest against a real Express app; they are all in `src/express-plus.test.ts`.
 
+## Changelog
+
+`CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Every user-facing change (public API, types, runtime behavior, dependencies consumers install) gets an entry under `## [Unreleased]` in the same PR, in the matching category (Added, Changed, Deprecated, Removed, Fixed, Security), with a PR link reference like `([#6])` plus a matching `[#6]: …/pull/6` link at the bottom. Skip internal-only changes (CI, dev tooling, tests, refactors with no visible effect). Call out anything that could break consumers.
+
+Releases go through `npm version <patch|minor|major>`. `scripts/changelog.mjs` runs as `preversion` (refuses to release with an empty `[Unreleased]`) and `version` (moves the entries under `## [X.Y.Z] - date`, updates the compare links, and stages the file into npm's version commit). Don't move entries by hand.
+
 ## Code Style Guidelines
 - **Indentation**: 2 spaces
 - **Formatting**: Semicolons required, trailing commas in multi-line structures

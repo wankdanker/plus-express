@@ -193,5 +193,45 @@ describe('router mounting', () => {
     expect(Object.keys(parentRegistry.generateOpenAPIDocument().paths)).toEqual(['/own']);
   });
 
-  it.todo('documents a router passed after other middleware in the same use() call');
+  it('documents a router passed after other middleware in the same use() call', async () => {
+    const { app, registry } = plus(express());
+    const requireAuth = (req: Request, res: Response, next: NextFunction) => next();
+    app.use('/api', requireAuth, routerWith('/users', 'Users'));
+
+    expect((await request(app).get('/api/users')).text).toBe('Users');
+    expect(Object.keys(registry.generateOpenAPIDocument().paths)).toEqual(['/api/users']);
+  });
+
+  it('documents a router passed after other middleware without a path', () => {
+    const { app, registry } = plus(express());
+    app.use((req: Request, res: Response, next: NextFunction) => next(), routerWith('/users', 'Users'));
+
+    expect(Object.keys(registry.generateOpenAPIDocument().paths)).toEqual(['/users']);
+  });
+
+  it('documents routers passed in arrays', async () => {
+    const { app, registry } = plus(express());
+    app.use('/api', [routerWith('/users', 'Users'), [routerWith('/teams', 'Teams')]]);
+    app.use([routerWith('/health', 'Health')]);
+
+    expect((await request(app).get('/api/teams')).text).toBe('Teams');
+    expect(Object.keys(registry.generateOpenAPIDocument().paths).sort()).toEqual(['/api/teams', '/api/users', '/health']);
+  });
+
+  it('documents a router mounted at an array of paths under each', async () => {
+    const { app, registry } = plus(express());
+    app.use(['/v1', '/v2'], routerWith('/users', 'Users'));
+
+    expect((await request(app).get('/v2/users')).text).toBe('Users');
+    expect(Object.keys(registry.generateOpenAPIDocument().paths).sort()).toEqual(['/v1/users', '/v2/users']);
+  });
+
+  it('documents routers passed to a nested router after other middleware', () => {
+    const { app, registry } = plus(express());
+    const { router: parent } = plus();
+    parent.use('/child', (req: Request, res: Response, next: NextFunction) => next(), routerWith('/nested', 'Nested'));
+    app.use('/api', parent);
+
+    expect(Object.keys(registry.generateOpenAPIDocument().paths)).toEqual(['/api/child/nested']);
+  });
 });

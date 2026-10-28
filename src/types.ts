@@ -100,6 +100,11 @@ export type AugmentedMethod<T> = ((name: string) => any) &
     ): T;
   };
 
+// Mount paths and handlers accepted by use(), as in Express (handlers can be nested in arrays)
+type MountPath = string | RegExp | Array<string | RegExp>;
+type UseHandler = RequestHandler | ErrorRequestHandler | RouterPlus | Router;
+type UseHandlers = Array<UseHandler | UseHandlers>;
+
 // Extended application interface with augmented methods
 export interface ExpressPlusApplication extends Omit<Application, 'get' | 'post' | 'put' | 'delete' | 'patch' | 'options' | 'head' | 'use'> {
   // Omit drops call signatures, so restore the app's request listener signature
@@ -117,8 +122,8 @@ export interface ExpressPlusApplication extends Omit<Application, 'get' | 'post'
   // Extended use() overloads to support RouterPlus instances
   use(router: RouterPlus): ExpressPlusApplication;
   use(path: string, router: RouterPlus): ExpressPlusApplication;
-  use(...handlers: Array<RequestHandler | ErrorRequestHandler | RouterPlus | Router>): ExpressPlusApplication;
-  use(path: string, ...handlers: Array<RequestHandler | ErrorRequestHandler | RouterPlus | Router>): ExpressPlusApplication;
+  use(...handlers: Array<UseHandler | UseHandlers>): ExpressPlusApplication;
+  use(path: MountPath, ...handlers: Array<UseHandler | UseHandlers>): ExpressPlusApplication;
 }
 
 // Extended router interface with augmented methods
@@ -135,8 +140,8 @@ export interface RouterPlus extends Omit<Router, 'get' | 'post' | 'put' | 'delet
   // Extended use() overloads to support RouterPlus instances for nested routing
   use(router: RouterPlus): RouterPlus;
   use(path: string, router: RouterPlus): RouterPlus;
-  use(...handlers: Array<RequestHandler | ErrorRequestHandler | RouterPlus | Router>): RouterPlus;
-  use(path: string, ...handlers: Array<RequestHandler | ErrorRequestHandler | RouterPlus | Router>): RouterPlus;
+  use(...handlers: Array<UseHandler | UseHandlers>): RouterPlus;
+  use(path: MountPath, ...handlers: Array<UseHandler | UseHandlers>): RouterPlus;
   
   // Custom properties for internal tracking
   _isRouterPlus?: boolean;

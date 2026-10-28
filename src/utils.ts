@@ -1,10 +1,12 @@
+import { isDeepStrictEqual } from 'node:util';
 import { Router, Application } from 'express';
-import { ZodType } from 'zod';
+import { z, ZodType } from 'zod';
 import { OpenAPIRegistry, OpenApiGeneratorV3 } from '@asteasolutions/zod-to-openapi';
 import { AnyZodObject, HttpMethod, EndpointOptions, MountInfo, Registry, RouterPlus } from './types';
 
 type RouteMethod = (...args: unknown[]) => unknown;
 type AnyEndpointOptions = EndpointOptions<ZodType, AnyZodObject, AnyZodObject, AnyZodObject>;
+type Definition = OpenAPIRegistry['definitions'][number];
 
 /**
  * Checks whether a value is an options object (not an array, RegExp, or handler function)
@@ -70,58 +72,84 @@ function isRouterPlus(value: unknown): value is RouterPlus & { _registry: Regist
 }
 
 /**
- * Records a RouterPlus mount from the arguments of an app.use() or router.use() call
+ * Records the RouterPlus mounts from the arguments of an app.use() or router.use() call
+ *
+ * Like Express, the first argument is the mount path unless it is a handler (or an array
+ * starting with one). Every RouterPlus among the handlers is recorded, including routers
+ * passed after other middleware or inside arrays, under each mount path.
  *
  * @param args Arguments passed to use()
  * @param mounts Mount list to record into
  */
 export function recordRouterPlusMount(args: unknown[], mounts: MountInfo[]): void {
-  // Case 1: path + router (use('/path', routerPlus))
-  if (args.length >= 2 && isRouterPlus(args[1])) {
-    const mountPath = typeof args[0] === 'string' ? args[0] : '/';
-    mounts.push({
-      path: normalizeMountPath(mountPath),
-      registry: args[1]._registry,
-      mounts: args[1]._nestedMountRegistry,
-    });
+  let first = args[0];
+  while (Array.isArray(first) && first.length > 0) {
+    first = first[0];
   }
+  const hasPath = args.length > 0 && typeof first !== 'function';
 
-  // Case 2: Just router (use(routerPlus))
-  if (args.length === 1 && isRouterPlus(args[0])) {
-    mounts.push({ path: '/', registry: args[0]._registry, mounts: args[0]._nestedMountRegistry });
-  }
+  // RegExp mount paths can't be expressed in OpenAPI, so those routers are documented at the root
+  const mountPaths = (hasPath ? [args[0]].flat(Infinity) : ['/'])
+    .map((path) => normalizeMountPath(typeof path === 'string' ? path : '/'));
+  const handlers = (hasPath ? args.slice(1) : args).flat(Infinity);
+
+  handlers.filter(isRouterPlus).forEach((router) => {
+    mountPaths.forEach((path) => {
+      mounts.push({ path, registry: router._registry, mounts: router._nestedMountRegistry });
+    });
+  });
 }
 
 /**
- * Re-registers the routes of mounted routers, and of any routers nested within them,
- * into the base registry with each path prefixed by its full mount path
+ * Collects the definitions of mounted routers, and of any routers nested within them,
+ * with each route path prefixed by its full mount path. The registries are not modified,
+ * so collecting again (on every document generation) returns the same result.
  *
- * @param baseRegistry The raw OpenAPI registry to register routes into
  * @param mounts Mount information for routers mounted at this level
  * @param prefix Mount path accumulated from parent routers
+ * @returns One list of definitions per mounted registry
  */
-export function registerMountedRoutes(baseRegistry: OpenAPIRegistry, mounts: MountInfo[], prefix = ''): void {
-  mounts.forEach(({ path, registry, mounts: nestedMounts }) => {
+export function collectMountedDefinitions(mounts: MountInfo[], prefix = ''): Definition[][] {
+  return mounts.flatMap(({ path, registry, mounts: nestedMounts }) => {
     const mountPath = path === '/' ? prefix : `${prefix}${path}`;
 
-    registry.getRawRegistry().definitions.forEach((def) => {
-      // Non-route definitions (components, schemas, etc.) are skipped
-      // They should be defined in the main registry if needed
+    const definitions = registry.getRawRegistry().definitions.map((def): Definition => {
       if (def.type !== 'route') {
-        return;
+        return def;
       }
-
       const routePath = def.route.path.startsWith('/') ? def.route.path.substring(1) : def.route.path;
-
-      baseRegistry.registerPath({
-        ...def.route,
-        path: `${mountPath}/${routePath}`,
-      });
+      return { ...def, route: { ...def.route, path: `${mountPath}/${routePath}` } };
     });
 
-    if (nestedMounts) {
-      registerMountedRoutes(baseRegistry, nestedMounts, mountPath);
-    }
+    return [definitions, ...(nestedMounts ? collectMountedDefinitions(nestedMounts, mountPath) : [])];
+  });
+}
+
+/**
+ * Throws when two registries define a component (schema, parameter, security scheme, etc.)
+ * under the same name with different contents, which the generator would otherwise resolve
+ * by silently keeping one. Identical definitions, such as a shared schema or a router
+ * mounted twice, are allowed.
+ *
+ * @param definitionSets One list of definitions per registry
+ */
+export function assertCompatibleComponents(definitionSets: Definition[][]): void {
+  const seen = new Map<string, unknown>();
+
+  definitionSets.forEach((definitions) => {
+    const { components = {} } = new OpenApiGeneratorV3(definitions).generateComponents();
+
+    Object.entries(components).forEach(([componentType, named]) => {
+      Object.entries(named ?? {}).forEach(([name, component]) => {
+        const key = `${componentType}.${name}`;
+        if (seen.has(key) && !isDeepStrictEqual(seen.get(key), component)) {
+          throw new Error(
+            `OpenAPI component "${name}" (components.${componentType}) is defined differently by two mounted registries`
+          );
+        }
+        seen.set(key, component);
+      });
+    });
   });
 }
 
@@ -145,6 +173,59 @@ export function requirePathParameters(document: OpenAPIDocument): OpenAPIDocumen
           parameter.required = true;
         }
       });
+    });
+  });
+
+  return document;
+}
+
+/**
+ * Checks whether a schema coerces its input (z.coerce.*), looking through optional and default wrappers
+ */
+function isCoerced(schema: z.core.$ZodType): boolean {
+  let current = schema;
+  while (['optional', 'default', 'prefault'].includes(current._zod.def.type)) {
+    current = (current._zod.def as z.core.$ZodOptionalDef).innerType;
+  }
+  return 'coerce' in current._zod.def && current._zod.def.coerce === true;
+}
+
+/**
+ * Corrects how coerced (z.coerce.*) path, query and header parameters are documented.
+ * zod-to-openapi infers `required` and `nullable` by test-parsing the schema, which coercion
+ * passes (null becomes 0), so it documents them as optional and nullable. Here `required`
+ * follows the object key's optionality, and `nullable` is removed.
+ *
+ * @param document Generated OpenAPI document (modified in place)
+ * @param definitions The definitions the document was generated from
+ * @returns The same document
+ */
+export function documentCoercedParameters(document: OpenAPIDocument, definitions: Definition[]): OpenAPIDocument {
+  definitions.forEach((def) => {
+    // 'query' is an OpenAPI 3.2 method, which plus-express doesn't register
+    if (def.type !== 'route' || def.route.method === 'query') {
+      return;
+    }
+    const { request } = def.route;
+    const schemas: Partial<Record<string, unknown>> = { path: request?.params, query: request?.query, header: request?.headers };
+
+    document.paths?.[def.route.path]?.[def.route.method]?.parameters?.forEach((parameter) => {
+      if (!('in' in parameter)) {
+        return;
+      }
+      const schema = schemas[parameter.in];
+      const field = schema instanceof z.ZodObject ? schema.shape[parameter.name] : undefined;
+      if (!field || !isCoerced(field)) {
+        return;
+      }
+
+      // optin is set when the key may be missing from the input (optional or defaulted)
+      if (parameter.in !== 'path') {
+        parameter.required = field._zod.optin === undefined;
+      }
+      if (parameter.schema && 'nullable' in parameter.schema) {
+        delete parameter.schema.nullable;
+      }
     });
   });
 

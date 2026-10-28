@@ -6,7 +6,7 @@ import {
   ExpressPlusReturn,
   MountInfo,
 } from './types';
-import { enhanceHttpMethods, recordRouterPlusMount, registerMountedRoutes } from './utils';
+import { enhanceHttpMethods, recordRouterPlusMount } from './utils';
 
 /**
  * Enhances an Express application with typed route handling and OpenAPI documentation
@@ -16,11 +16,11 @@ import { enhanceHttpMethods, recordRouterPlusMount, registerMountedRoutes } from
  * @returns Enhanced Express application and registry
  */
 export const expressPlus = (app: Application, opts: ApiOptions = {}): ExpressPlusReturn => {
-  // Create registry with the provided options
-  const registry = createRegistry(opts);
-
   // Create an instance-specific mount registry (no global state)
   const mountRegistry: MountInfo[] = [];
+
+  // Create the registry; its documents include the routers recorded in mountRegistry
+  const registry = createRegistry(opts, mountRegistry);
 
   // Define the HTTP methods to enhance
   const methods = ['get', 'post', 'put', 'delete', 'patch', 'options', 'head'] as const;
@@ -38,16 +38,6 @@ export const expressPlus = (app: Application, opts: ApiOptions = {}): ExpressPlu
     // Call the original use method
     return originalUse.apply(this, args);
   } as Application['use'];
-
-  // Override the generateOpenAPIDocument method to combine registries
-  const originalGenerateOpenAPIDocument = registry.generateOpenAPIDocument;
-  registry.generateOpenAPIDocument = (config) => {
-    // Copy mounted (and nested) router routes into the base registry with full paths
-    registerMountedRoutes(registry.getRawRegistry(), mountRegistry);
-
-    // Then generate the document using the original method
-    return originalGenerateOpenAPIDocument(config);
-  };
 
   // Return enhanced app and registry
   return {

@@ -35,6 +35,50 @@ describe('OpenAPI document', () => {
     expect(doc.paths['/users/{id}'].get.parameters).toEqual([
       expect.objectContaining({ name: 'id', in: 'path', required: true }),
     ]);
+    expect(doc.paths['/users/{id}'].get.parameters[0].schema).not.toHaveProperty('nullable');
+  });
+
+  it('documents coerced query and header parameters by their optionality, without nullable', () => {
+    const { app, registry } = plus(express());
+    app.get({
+      path: '/items',
+      query: z.object({
+        page: z.coerce.number().int(),
+        limit: z.coerce.number().optional(),
+        size: z.coerce.number().default(20),
+        archived: z.coerce.boolean().nullable(),
+      }),
+      headers: z.object({ 'x-page-size': z.coerce.number() }),
+    }, (req, res) => {
+      res.end();
+    });
+
+    const parameters = registry.generateOpenAPIDocument().paths['/items'].get.parameters;
+    const byName = (name: string) => parameters.find((parameter: { name: string }) => parameter.name === name);
+
+    expect(byName('page')).toMatchObject({ in: 'query', required: true, schema: { type: 'integer' } });
+    expect(byName('page').schema).not.toHaveProperty('nullable');
+    expect(byName('limit')).toMatchObject({ in: 'query', required: false });
+    expect(byName('limit').schema).not.toHaveProperty('nullable');
+    expect(byName('size')).toMatchObject({ in: 'query', required: false });
+    expect(byName('x-page-size')).toMatchObject({ in: 'header', required: true });
+    expect(byName('x-page-size').schema).not.toHaveProperty('nullable');
+    // Not coerced at the top level (the coercion is inside .nullable()), so left as generated
+    expect(byName('archived').schema).toMatchObject({ nullable: true });
+  });
+
+  it('documents coerced parameters of mounted routers', () => {
+    const { app, registry } = plus(express());
+    const { router } = plus();
+    router.get({ path: '/items', query: z.object({ page: z.coerce.number() }) }, (req, res) => {
+      res.end();
+    });
+    app.use('/api', router);
+
+    const [page] = registry.generateOpenAPIDocument().paths['/api/items'].get.parameters;
+
+    expect(page).toMatchObject({ name: 'page', in: 'query', required: true });
+    expect(page.schema).not.toHaveProperty('nullable');
   });
 
   it('includes operation metadata', () => {
@@ -192,6 +236,29 @@ describe('OpenAPI document', () => {
     expect(second).toEqual(first);
   });
 
+  it("doesn't add to any registry when generated repeatedly", () => {
+    const { app, registry } = plus(express());
+    const { router, registry: routerRegistry } = plus();
+    const { router: nested } = plus();
+    nested.get({ path: '/deep' }, (req, res) => {
+      res.end();
+    });
+    router.get({ path: '/list' }, (req, res) => {
+      res.end();
+    });
+    router.use('/nested', nested);
+    app.use('/users', router);
+
+    const definitionCounts = () => [registry, routerRegistry].map((r) => r.getRawRegistry().definitions.length);
+    const before = definitionCounts();
+    for (let i = 0; i < 5; i++) {
+      registry.generateOpenAPIDocument();
+    }
+
+    expect(definitionCounts()).toEqual(before);
+    expect(Object.keys(registry.generateOpenAPIDocument().paths).sort()).toEqual(['/users/list', '/users/nested/deep']);
+  });
+
   it('keeps documents of separate apps independent', () => {
     const one = plus(express());
     const two = plus(express());
@@ -218,5 +285,75 @@ describe('OpenAPI document', () => {
     const pathItem = registry.generateOpenAPIDocument().paths['/resource'];
 
     expect(Object.keys(pathItem).sort()).toEqual([...methods].sort());
+  });
+});
+
+describe('components of mounted routers', () => {
+  const bearer = { type: 'http', scheme: 'bearer' } as const;
+
+  it("includes a mounted router's security schemes", () => {
+    const { app, registry } = plus(express());
+    const { router, registry: routerRegistry } = plus();
+    routerRegistry.registerSecurityScheme('bearer', bearer);
+    router.get({ path: '/me' }, (req, res) => {
+      res.end();
+    });
+    app.use('/api', router);
+
+    expect(registry.generateOpenAPIDocument().components.securitySchemes).toEqual({ bearer });
+  });
+
+  it("includes schemas registered on a nested router's registry", () => {
+    const { app, registry } = plus(express());
+    const { router: parent } = plus();
+    const { router: child, registry: childRegistry } = plus();
+    childRegistry.getRawRegistry().register('User', z.object({ id: z.string() }));
+    parent.use('/child', child);
+    app.use('/api', parent);
+
+    expect(registry.generateOpenAPIDocument().components.schemas).toEqual({
+      User: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
+    });
+  });
+
+  it('allows the same component to be defined identically by several registries', () => {
+    const { app, registry } = plus(express());
+    registry.registerSecurityScheme('bearer', bearer);
+    const user = z.object({ id: z.string() });
+    [plus(), plus()].forEach(({ router, registry: routerRegistry }, index) => {
+      routerRegistry.registerSecurityScheme('bearer', { ...bearer });
+      routerRegistry.getRawRegistry().register('User', user);
+      app.use(`/v${index + 1}`, router);
+    });
+
+    const { components } = registry.generateOpenAPIDocument();
+
+    expect(components.securitySchemes).toEqual({ bearer });
+    expect(Object.keys(components.schemas)).toEqual(['User']);
+  });
+
+  it('throws when two registries define a component with the same name differently', () => {
+    const { app, registry } = plus(express());
+    registry.registerSecurityScheme('auth', bearer);
+    const { router, registry: routerRegistry } = plus();
+    routerRegistry.registerSecurityScheme('auth', { type: 'http', scheme: 'basic' });
+    app.use('/api', router);
+
+    expect(() => registry.generateOpenAPIDocument()).toThrow(
+      'OpenAPI component "auth" (components.securitySchemes) is defined differently by two mounted registries'
+    );
+  });
+
+  it('throws when routes in two routers reference different schemas with the same name', () => {
+    const { app, registry } = plus(express());
+    [z.string(), z.number()].forEach((id, index) => {
+      const { router } = plus();
+      router.post({ path: '/items', body: z.object({ id }).openapi('Item') }, (req, res) => {
+        res.end();
+      });
+      app.use(`/v${index + 1}`, router);
+    });
+
+    expect(() => registry.generateOpenAPIDocument()).toThrow('OpenAPI component "Item" (components.schemas)');
   });
 });

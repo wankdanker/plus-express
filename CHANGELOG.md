@@ -11,6 +11,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The package now includes the MIT `LICENSE` file. ([#21])
 
+### Changed
+
+- `generateOpenAPIDocument()` now throws when two registries in the document (the app's and its mounted routers') define a component with the same name but different contents, such as two different schemas both named `User`. Previously one was kept silently and routes referencing the other were documented wrongly. Identical definitions are still allowed. ([#23])
+
+### Fixed
+
+- Routers mounted with `use()` are now documented when passed after other middleware (`app.use('/api', auth, router)`), inside arrays (`app.use('/api', [router])`), or under an array of paths (`app.use(['/v1', '/v2'], router)`). The `use()` types now accept these forms too. ([#23])
+- Security schemes and other components registered on a mounted router's registry are now included in the app's document. ([#23])
+- Coerced parameters (`z.coerce.*`) in the query string and headers are now documented as required unless optional or defaulted, and without `nullable: true`. ([#23])
+
+### Security
+
+- Generating the app's OpenAPI document no longer adds the routes of mounted routers to the app's registry again on every call. Apps that generate the document per request, such as a docs endpoint, grew in memory and slowed down with each request ([GHSA-w686-3925-7pp4]). ([#23])
+
 ## [3.0.0] - 2026-10-28
 
 **Breaking changes:**
@@ -99,3 +113,5 @@ Initial release.
 [#7]: https://github.com/wankdanker/plus-express/pull/7
 [#8]: https://github.com/wankdanker/plus-express/pull/8
 [#21]: https://github.com/wankdanker/plus-express/pull/21
+[#23]: https://github.com/wankdanker/plus-express/pull/23
+[GHSA-w686-3925-7pp4]: https://github.com/wankdanker/plus-express/security/advisories/GHSA-w686-3925-7pp4

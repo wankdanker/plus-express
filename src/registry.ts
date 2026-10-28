@@ -9,18 +9,27 @@ import {
   OpenAPIConfig, 
   ApiOptions,
   AnyZodObject,
+  MountInfo,
   Registry,
   ResponseObject,
 } from './types';
-import { requirePathParameters } from './utils';
+import {
+  assertCompatibleComponents,
+  collectMountedDefinitions,
+  documentCoercedParameters,
+  requirePathParameters,
+} from './utils';
 
 // Extend Zod with OpenAPI support
 extendZodWithOpenApi(z);
 
 /**
  * Create a registry with chainable configuration methods
+ *
+ * @param options API configuration options
+ * @param mounts Routers mounted on the app, whose definitions are added to the generated document
  */
-export function createRegistry(options: ApiOptions = {}): Registry {
+export function createRegistry(options: ApiOptions = {}, mounts: MountInfo[] = []): Registry {
   // Create a registry for OpenAPI components
   const openApiRegistry = new OpenAPIRegistry();
 
@@ -170,11 +179,19 @@ export function createRegistry(options: ApiOptions = {}): Registry {
    * Generate the full OpenAPI document
    */
   function generateOpenAPIDocument(config: Partial<OpenAPIConfig> = {}): any {
-    const generator = new OpenApiGeneratorV3(openApiRegistry.definitions);
-    return requirePathParameters(generator.generateDocument({
+    // Mounted routers' definitions are combined for this call only; no registry is modified
+    const definitionSets = [openApiRegistry.definitions, ...collectMountedDefinitions(mounts)];
+    if (definitionSets.length > 1) {
+      assertCompatibleComponents(definitionSets);
+    }
+    const definitions = definitionSets.flat();
+
+    const generator = new OpenApiGeneratorV3(definitions);
+    const document = generator.generateDocument({
       ...openApiConfig,
       ...config
-    }));
+    });
+    return documentCoercedParameters(requirePathParameters(document), definitions);
   }
 
   /**

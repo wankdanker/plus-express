@@ -1,8 +1,9 @@
 /**
  * Keeps CHANGELOG.md in step with `npm version`.
  *
- *   node scripts/changelog.mjs check    (preversion) fail if [Unreleased] has no entries
- *   node scripts/changelog.mjs release  (version)    move [Unreleased] entries under the new version
+ *   node scripts/changelog.mjs check            (preversion) fail if [Unreleased] has no entries
+ *   node scripts/changelog.mjs release          (version)    move [Unreleased] entries under the new version
+ *   node scripts/changelog.mjs notes <version>  (release workflow) print a version's section for release notes
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 
@@ -49,8 +50,28 @@ if (mode === 'check') {
   );
 
   writeFileSync(CHANGELOG, updated);
+} else if (mode === 'notes') {
+  const version = process.argv[3];
+  if (!version) {
+    fail('Usage: node scripts/changelog.mjs notes <version>');
+  }
+  const headingStart = changelog.indexOf(`\n## [${version}]`);
+  if (headingStart === -1) {
+    fail(`${CHANGELOG} has no "## [${version}]" section.`);
+  }
+
+  // The section runs to the next version heading, or to the link definitions after the last one
+  const rest = changelog.slice(changelog.indexOf('\n', headingStart + 1) + 1);
+  const end = Math.min(...[rest.indexOf('\n## ['), rest.search(/^\[[^\]]+\]: /m), rest.length].filter((i) => i !== -1));
+  const section = rest.slice(0, end).trim();
+
+  // Include the link definitions the section uses (e.g. [#6]), so its links resolve on their own
+  const definitions = changelog.match(/^\[[^\]]+\]: .+$/gm) ?? [];
+  const used = definitions.filter((definition) => section.includes(definition.slice(0, definition.indexOf(':'))));
+
+  console.log(used.length ? `${section}\n\n${used.join('\n')}` : section);
 } else {
-  fail('Usage: node scripts/changelog.mjs <check|release>');
+  fail('Usage: node scripts/changelog.mjs <check|release|notes <version>>');
 }
 
 function fail(message) {

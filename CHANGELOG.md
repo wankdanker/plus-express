@@ -7,10 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+**Breaking changes:**
+
+- On validation failures, `err.errors` is now an array of Zod issues instead of a JSON string.
+- On Express 5, `req.query` now holds the validated values (for example the number `5` instead of the string `"5"` for a `z.coerce.number()` field), matching Express 4 and `req.parsed.query`.
+- The compiled output requires Node.js 16.11 or later.
+
+Details are in the entries below.
+
 ### Added
 
 - `AnyZodObject` type, used as the bound for object-schema generics. It accepts strict, loose and catchall object schemas. ([#6])
 - `MountInfo` type is now exported. ([#6])
+- Releases are published from GitHub Actions with npm provenance, so each version on npm can be traced to the commit and workflow that built it. ([#8])
 
 ### Changed
 
@@ -25,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Routes on routers nested inside other routers (for example `usersRouter.use('/admin', adminRouter)`) now appear in the app's OpenAPI document. This includes routers nested after their parent was mounted. ([#5])
 - Validation errors now set `err.errors` to the array of Zod issues, as documented. Since the Zod 4 upgrade it had been a JSON string. If you `JSON.parse`d it, read the array directly instead. The original `ZodError` is now attached as `err.cause`. ([#6])
+- Path parameters are now always marked `required: true` in the OpenAPI document, as the spec requires. Coerced schemas such as `z.coerce.number()` were documented as optional. ([#7])
+- On Express 5, validated query values are now written back onto `req.query`, as on Express 4. Express 5 re-parses `req.query` on every access, so coerced values and defaults were lost there; only `req.parsed.query` had them. ([#7])
 - `ExpressPlusApplication` and `RouterPlus` can be used where Express expects a request handler, so `http.createServer(app)` and supertest's `request(app)` now type-check. ([#6])
 
 ## [2.1.1] - 2025-11-19
@@ -78,3 +89,5 @@ Initial release.
 [1.0.0]: https://github.com/wankdanker/plus-express/tree/v1.0.0
 [#5]: https://github.com/wankdanker/plus-express/pull/5
 [#6]: https://github.com/wankdanker/plus-express/pull/6
+[#7]: https://github.com/wankdanker/plus-express/pull/7
+[#8]: https://github.com/wankdanker/plus-express/pull/8

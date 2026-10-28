@@ -12,6 +12,7 @@ import {
   Registry,
   ResponseObject,
 } from './types';
+import { requirePathParameters } from './utils';
 
 // Extend Zod with OpenAPI support
 extendZodWithOpenApi(z);
@@ -136,7 +137,14 @@ export function createRegistry(options: ApiOptions = {}): Registry {
 
         // Validate query params with merged schema
         validatedRequest.parsed.query = mergedQuerySchema.parse(req.query);
-        extend(true, req.query, validatedRequest.parsed.query); // Update original query for compatibility
+        // Update original query for compatibility. Express 5 defines req.query as a getter that
+        // re-parses on every access, so shadow it with an own property holding the merged result
+        Object.defineProperty(req, 'query', {
+          value: extend(true, req.query, validatedRequest.parsed.query),
+          writable: true,
+          configurable: true,
+          enumerable: true,
+        });
 
         // Validate headers with merged schema
         // Use partial to ensure we only validate the headers we care about
@@ -163,10 +171,10 @@ export function createRegistry(options: ApiOptions = {}): Registry {
    */
   function generateOpenAPIDocument(config: Partial<OpenAPIConfig> = {}): any {
     const generator = new OpenApiGeneratorV3(openApiRegistry.definitions);
-    return generator.generateDocument({
+    return requirePathParameters(generator.generateDocument({
       ...openApiConfig,
       ...config
-    });
+    }));
   }
 
   /**

@@ -1,6 +1,6 @@
 import { Router, Application } from 'express';
 import { ZodType } from 'zod';
-import { OpenAPIRegistry } from '@asteasolutions/zod-to-openapi';
+import { OpenAPIRegistry, OpenApiGeneratorV3 } from '@asteasolutions/zod-to-openapi';
 import { AnyZodObject, HttpMethod, EndpointOptions, MountInfo, Registry, RouterPlus } from './types';
 
 type RouteMethod = (...args: unknown[]) => unknown;
@@ -123,6 +123,32 @@ export function registerMountedRoutes(baseRegistry: OpenAPIRegistry, mounts: Mou
       registerMountedRoutes(baseRegistry, nestedMounts, mountPath);
     }
   });
+}
+
+type OpenAPIDocument = ReturnType<OpenApiGeneratorV3['generateDocument']>;
+
+/**
+ * Marks every path parameter as required, as the OpenAPI spec mandates.
+ * zod-to-openapi infers `required` by test-parsing the schema, which coercing
+ * schemas (z.coerce.*) can pass, so it reports them as optional.
+ *
+ * @param document Generated OpenAPI document (modified in place)
+ * @returns The same document
+ */
+export function requirePathParameters(document: OpenAPIDocument): OpenAPIDocument {
+  const methods = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'] as const;
+
+  Object.values(document.paths ?? {}).forEach((pathItem) => {
+    methods.forEach((method) => {
+      pathItem[method]?.parameters?.forEach((parameter) => {
+        if ('in' in parameter && parameter.in === 'path') {
+          parameter.required = true;
+        }
+      });
+    });
+  });
+
+  return document;
 }
 
 /**

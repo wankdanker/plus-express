@@ -6,31 +6,36 @@ on:
       - main
       - master
   pull_request:
-    branches:
-      - main
-      - master
+  # Lets the release workflow run the same checks before publishing
+  workflow_call:
 
 jobs:
   test:
-    name: Test & Build
+    name: Test & Build (Node ${{ matrix.node-version }}, Express ${{ matrix.express-version }})
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
         node-version: [22.x, 24.x]
+        # Both majors are in the express peerDependencies range
+        express-version: [4, 5]
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Install Express ${{ matrix.express-version }}
+        if: matrix.express-version != 5
+        run: npm install --no-save express@${{ matrix.express-version }}
 
       - name: Run linter
         run: npm run lint

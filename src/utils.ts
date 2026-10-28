@@ -55,6 +55,50 @@ export function enhanceHttpMethods(
 export interface MountInfo {
   path: string;
   registry: any;
+  // Routers mounted within this router (shared by reference, so later mounts are seen)
+  mounts?: MountInfo[];
+}
+
+/**
+ * Re-registers the routes of mounted routers, and of any routers nested within them,
+ * into the base registry with each path prefixed by its full mount path
+ *
+ * @param baseRegistry The raw OpenAPI registry to register routes into
+ * @param mounts Mount information for routers mounted at this level
+ * @param prefix Mount path accumulated from parent routers
+ */
+export function registerMountedRoutes(baseRegistry: any, mounts: MountInfo[], prefix = ''): void {
+  mounts.forEach(({ path, registry, mounts: nestedMounts }) => {
+    if (!registry) {
+      return;
+    }
+
+    const mountPath = path === '/' ? prefix : `${prefix}${path}`;
+
+    // Get the raw registry definitions from the Registry object
+    const rawRegistry = registry.getRawRegistry ? registry.getRawRegistry() : registry;
+
+    if (rawRegistry && rawRegistry.definitions) {
+      rawRegistry.definitions.forEach((def: any) => {
+        // Non-route definitions (components, schemas, etc.) are skipped
+        // They should be defined in the main registry if needed
+        if (def.type !== 'route') {
+          return;
+        }
+
+        const routePath = def.route.path.startsWith('/') ? def.route.path.substring(1) : def.route.path;
+
+        baseRegistry.registerPath({
+          ...def.route,
+          path: `${mountPath}/${routePath}`,
+        });
+      });
+    }
+
+    if (nestedMounts) {
+      registerMountedRoutes(baseRegistry, nestedMounts, mountPath);
+    }
+  });
 }
 
 /**

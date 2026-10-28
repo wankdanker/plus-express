@@ -243,6 +243,49 @@ describe('plus', () => {
       expect(doc.paths['/api/v1/users/list'].get.summary).toBe('List users');
     });
 
+    it('should include nested router paths in OpenAPI document', () => {
+      const { router: usersRouter } = plus();
+      const { router: adminRouter } = plus();
+      const { router: auditRouter } = plus();
+
+      usersRouter.get({ path: '/profile', summary: 'Get profile' }, (req, res) => {
+        res.json({});
+      });
+      adminRouter.get({ path: '/stats', summary: 'Get stats' }, (req, res) => {
+        res.json({});
+      });
+      auditRouter.get({ path: '/log/:id', summary: 'Get audit log' }, (req, res) => {
+        res.json({});
+      });
+
+      usersRouter.use('/admin', adminRouter);
+      app.use('/api', usersRouter);
+      // Nested after the parent is already mounted on the app
+      adminRouter.use('/audit', auditRouter);
+
+      const doc = registry.generateOpenAPIDocument();
+
+      expect(doc.paths['/api/profile'].get.summary).toBe('Get profile');
+      expect(doc.paths['/api/admin/stats'].get.summary).toBe('Get stats');
+      expect(doc.paths['/api/admin/audit/log/{id}'].get.summary).toBe('Get audit log');
+    });
+
+    it('should include routers nested without a mount path', () => {
+      const { router: apiRouter } = plus();
+      const { router: healthRouter } = plus();
+
+      healthRouter.get({ path: '/health', summary: 'Health check' }, (req, res) => {
+        res.json({});
+      });
+
+      apiRouter.use(healthRouter);
+      app.use('/api', apiRouter);
+
+      const doc = registry.generateOpenAPIDocument();
+
+      expect(doc.paths['/api/health'].get.summary).toBe('Health check');
+    });
+
     it('should configure OpenAPI info', () => {
       registry.setInfo({
         title: 'Test API',

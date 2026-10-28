@@ -5,7 +5,7 @@ import {
   ExpressPlusApplication,
   ExpressPlusReturn
 } from './types';
-import { enhanceHttpMethods, combineRegistries, normalizeMountPath, MountInfo } from './utils';
+import { enhanceHttpMethods, normalizeMountPath, registerMountedRoutes, MountInfo } from './utils';
 
 /**
  * Enhances an Express application with typed route handling and OpenAPI documentation
@@ -40,13 +40,13 @@ export const expressPlus = (app: Application, opts: ApiOptions = {}): ExpressPlu
       // If middleware is a RouterPlus, register its mount point
       if (middleware && middleware._isRouterPlus && middleware._registry) {
         const normalizedPath = normalizeMountPath(mountPath);
-        mountRegistry.push({ path: normalizedPath, registry: middleware._registry });
+        mountRegistry.push({ path: normalizedPath, registry: middleware._registry, mounts: middleware._nestedMountRegistry });
       }
     }
 
     // Case 2: Just RouterPlus (app.use(router))
     if (args.length === 1 && args[0] && args[0]._isRouterPlus && args[0]._registry) {
-      mountRegistry.push({ path: '/', registry: args[0]._registry });
+      mountRegistry.push({ path: '/', registry: args[0]._registry, mounts: args[0]._nestedMountRegistry });
     }
 
     // Call the original use method
@@ -56,48 +56,8 @@ export const expressPlus = (app: Application, opts: ApiOptions = {}): ExpressPlu
   // Override the generateOpenAPIDocument method to combine registries
   const originalGenerateOpenAPIDocument = registry.generateOpenAPIDocument;
   registry.generateOpenAPIDocument = function(config?: Partial<any>): any {
-    // Get the base registry
-    const baseRegistry = registry.getRawRegistry();
-
-    // For each mounted registry, copy its definitions to the base registry
-    mountRegistry.forEach(({ path, registry: mountedRegistry }) => {
-      if (!mountedRegistry) {
-        return;
-      }
-
-      // Get the raw registry definitions from the Registry object
-      const rawRegistry = mountedRegistry.getRawRegistry ?
-                         mountedRegistry.getRawRegistry() :
-                         mountedRegistry;
-
-      if (!rawRegistry || !rawRegistry.definitions) {
-        return;
-      }
-
-      // For each definition in the mounted registry, re-register it with the base registry
-      rawRegistry.definitions.forEach((def: any) => {
-        if (def.type === 'route') {
-          // Extract the route details
-          const route = def.route;
-          let routePath = route.path;
-
-          // Adjust the path
-          if (routePath.startsWith('/')) {
-            routePath = routePath.substring(1);
-          }
-          const fullPath = path === '/' ? `/${routePath}` : `${path}/${routePath}`;
-
-          // Re-register the route with the adjusted path using the base registry
-          // This properly adds it to the registry's definitions
-          baseRegistry.registerPath({
-            ...route,
-            path: fullPath
-          });
-        }
-        // Note: Non-route definitions (components, schemas, etc.) are skipped
-        // They should be defined in the main registry if needed
-      });
-    });
+    // Copy mounted (and nested) router routes into the base registry with full paths
+    registerMountedRoutes(registry.getRawRegistry(), mountRegistry);
 
     // Then generate the document using the original method
     return originalGenerateOpenAPIDocument.call(this, config);

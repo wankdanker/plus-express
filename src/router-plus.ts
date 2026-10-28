@@ -65,13 +65,13 @@ export const routerPlus = (router?: Router, opts: ApiOptions = {}): RouterPlusRe
       // If middleware is a RouterPlus, register its mount point
       if (middleware && middleware._isRouterPlus && middleware._registry) {
         const normalizedPath = normalizeMountPath(mountPath);
-        nestedMountRegistry.push({ path: normalizedPath, registry: middleware._registry });
+        nestedMountRegistry.push({ path: normalizedPath, registry: middleware._registry, mounts: middleware._nestedMountRegistry });
       }
     }
 
     // Case 2: Just router (router.use(routerPlus))
     if (args.length === 1 && args[0] && args[0]._isRouterPlus && args[0]._registry) {
-      nestedMountRegistry.push({ path: '/', registry: args[0]._registry });
+      nestedMountRegistry.push({ path: '/', registry: args[0]._registry, mounts: args[0]._nestedMountRegistry });
     }
 
     // Call the original use method

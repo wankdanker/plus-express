@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+**Breaking changes:**
+
+- On validation failures, `err.errors` is now an array of Zod issues instead of a JSON string.
+- On Express 5, `req.query` now holds the validated values (for example the number `5` instead of the string `"5"` for a `z.coerce.number()` field), matching Express 4 and `req.parsed.query`.
+- The compiled output requires Node.js 16.11 or later.
+
+Details are in the entries below.
+
 ### Added
 
 - `AnyZodObject` type, used as the bound for object-schema generics. It accepts strict, loose and catchall object schemas. ([#6])
